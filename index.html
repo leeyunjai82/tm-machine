@@ -383,7 +383,7 @@
                 metrics: ['accuracy']
             });
 
-            const xsTensor = tf.concat(trainingDataInputs, 0);
+            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 7 * 7 * 256]);
             const ysTensor = tf.oneHot(tf.tensor1d(trainingDataOutputs, 'int32'), numClasses);
 
             await model.fit(xsTensor, ysTensor, {
@@ -438,7 +438,7 @@
                             .div(tf.scalar(255.0))
                             .expandDims());
 
-            const features = tf.tidy(() => mobilenet.predict(img));
+            const features = tf.tidy(() => mobilenet.predict(img).flatten());
             const prediction = tf.tidy(() => model.predict(features));
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
