@@ -185,7 +185,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이미지 학습 도구</title>
     <script src="static/tf.min-3.11.0.js"></script>
-    
 </head>
 <body>
     <div class="container">
@@ -206,7 +205,7 @@
             <!-- Camera Feed and Capture -->
             <div id="camera-section">
                 <video id="camera" autoplay playsinline></video>
-                <button id="capture-button" onclick="captureImage()">이미지 캡처</button>
+                <button id="capture-button" onmousedown="startCapturingImages()" onmouseup="stopCapturingImages()" onmouseleave="stopCapturingImages()">이미지 캡처</button>
             </div>
 
             <!-- Training Parameters -->
@@ -253,6 +252,8 @@
         let examplesCount = [];
         let predict = false;
         let webcamStream;
+        let capturing = false;
+        let captureInterval;
         let previewing = false;
         let previewInterval = null;
 
@@ -299,11 +300,22 @@
 
         // Select a class
         function selectClass(className) {
-            if (gatherDataState !== -1) {
-                gatherDataState = -1;
-            } else {
-                gatherDataState = CLASS_NAMES.indexOf(className);
-            }
+            gatherDataState = CLASS_NAMES.indexOf(className);
+        }
+
+        // Capture images when button is held down
+        function startCapturingImages() {
+            capturing = true;
+            captureInterval = setInterval(() => {
+                if (capturing) {
+                    captureImage();
+                }
+            }, 200); // Capture image every 200ms
+        }
+
+        function stopCapturingImages() {
+            capturing = false;
+            clearInterval(captureInterval);
         }
 
         // Capture image from webcam
