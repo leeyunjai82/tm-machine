@@ -1,4 +1,3 @@
-
 <style>
     body {
         font-family: 'Nanum Gothic', sans-serif;
@@ -185,7 +184,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이미지 학습 도구</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="static/tf.min-3.11.0.js"></script>
+    
 </head>
 <body>
     <div class="container">
@@ -219,7 +219,7 @@
 
             <!-- Train, Export, and Import Model Buttons -->
             <div id="training-buttons">
-                <button onclick="trainModel()">모델 학습 시작</button>
+                <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModel()">모델 내보내기</button>
                 <label for="model-upload" class="upload-button">모델 불러오기</label>
@@ -242,11 +242,17 @@
     </div>
 
     <script>
-        let webcamStream;
-        const classes = {};
+        const MOBILE_NET_INPUT_WIDTH = 224;
+        const MOBILE_NET_INPUT_HEIGHT = 224;
+        const CLASS_NAMES = [];
+        let mobilenet;
         let model;
-        let selectedClass = null;
-        let capturingInterval = null;
+        let gatherDataState = -1;
+        let trainingDataInputs = [];
+        let trainingDataOutputs = [];
+        let examplesCount = [];
+        let predict = false;
+        let webcamStream;
         let previewing = false;
         let previewInterval = null;
 
@@ -256,12 +262,28 @@
             document.getElementById('camera').srcObject = webcamStream;
         }
 
+        // Load MobileNet Feature Model
+        async function loadMobileNetFeatureModel() {
+            const URL = 'static/model.json';
+            let tmp_model = await tf.loadLayersModel(URL);
+            const layer = tmp_model.getLayer('global_average_pooling2d_1');
+            mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
+
+            // Warm up the model by passing zeros through it once.
+            tf.tidy(function () {
+                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
+            });
+        }
+
+        loadMobileNetFeatureModel().then(() => {
+            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
+        });
+
         // Add a new class
         function addClass() {
             const className = document.getElementById('class-name').value;
-            if (className && !classes[className]) {
-                classes[className] = [];
-
+            if (className && !CLASS_NAMES.includes(className)) {
+                CLASS_NAMES.push(className);
                 // Create new class container
                 const classContainer = document.createElement('div');
                 classContainer.className = 'class-container';
@@ -270,7 +292,6 @@
                 classContainer.onclick = () => {
                     selectClass(className);
                 };
-
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
@@ -278,16 +299,16 @@
 
         // Select a class
         function selectClass(className) {
-            if (selectedClass) {
-                document.getElementById(`class-${selectedClass}`).classList.remove('selected');
+            if (gatherDataState !== -1) {
+                gatherDataState = -1;
+            } else {
+                gatherDataState = CLASS_NAMES.indexOf(className);
             }
-            selectedClass = className;
-            document.getElementById(`class-${selectedClass}`).classList.add('selected');
         }
 
         // Capture image from webcam
         function captureImage() {
-            if (!selectedClass) {
+            if (gatherDataState === -1) {
                 alert('이미지를 추가할 클래스를 선택하세요.');
                 return;
             }
@@ -300,55 +321,38 @@
             const imageData = canvas.toDataURL('image/png');
 
             // Add image to the selected class
-            if (selectedClass && classes[selectedClass]) {
-                classes[selectedClass].push(imageData);
-                const imageElement = document.createElement('img');
-                imageElement.src = imageData;
-                imageElement.className = 'thumbnail';
-                imageElement.onclick = function() {
-                    if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                        const index = classes[selectedClass].indexOf(imageData);
-                        if (index > -1) {
-                            classes[selectedClass].splice(index, 1);
-                            imageElement.remove();
-                        }
+            const className = CLASS_NAMES[gatherDataState];
+            const imageElement = document.createElement('img');
+            imageElement.src = imageData;
+            imageElement.className = 'thumbnail';
+            imageElement.onclick = function() {
+                if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                    const index = trainingDataInputs.indexOf(imageData);
+                    if (index > -1) {
+                        trainingDataInputs.splice(index, 1);
+                        imageElement.remove();
                     }
-                };
-                document.querySelector(`#class-${selectedClass} .image-collection`).appendChild(imageElement);
-            }
-        }
-
-        // Start capturing images
-        function startCapturingImages() {
-            if (capturingInterval) return; // Prevent multiple intervals
-            capturingInterval = setInterval(captureImage, 500);
-        }
-
-        // Stop capturing images
-        function stopCapturingImages() {
-            clearInterval(capturingInterval);
-            capturingInterval = null;
+                }
+            };
+            document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
+            const imgTensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
+            trainingDataInputs.push(imgTensor);
+            trainingDataOutputs.push(gatherDataState);
         }
 
         // Train model using MobileNet for transfer learning
-        async function trainModel() {
-            const numClasses = Object.keys(classes).length;
+        async function trainAndPredict() {
+            const numClasses = CLASS_NAMES.length;
             if (numClasses === 0) {
                 alert('모델을 학습시키려면 적어도 하나의 클래스와 이미지가 필요합니다.');
                 return;
             }
 
-            const epochs = parseInt(document.getElementById('epochs').value);
-            const batchSize = parseInt(document.getElementById('batch-size').value);
             document.getElementById('training-progress').innerText = '학습을 준비 중입니다...';
 
-            const mobilenet = await tf.loadLayersModel('model/mobilenet_v2/model.json');
-            const layer = mobilenet.getLayer('global_average_pooling2d_1');
-            const truncatedMobilenet = tf.model({inputs: mobilenet.inputs, outputs: layer.output});
-
             model = tf.sequential();
-            model.add(tf.layers.inputLayer({inputShape: [224, 224, 3]}));
-            model.add(truncatedMobilenet);
+            model.add(tf.layers.inputLayer({inputShape: [1280]}));
+            model.add(tf.layers.dense({units: 128, activation: 'relu'}));
             model.add(tf.layers.dense({units: numClasses, activation: 'softmax'}));
 
             model.compile({
@@ -357,34 +361,19 @@
                 metrics: ['accuracy']
             });
 
-            const xs = [];
-            const ys = [];
-
-            for (const [classIndex, className] of Object.keys(classes).entries()) {
-                const images = classes[className];
-                for (let i = 0; i < images.length; i++) {
-                    const imageElement = new Image();
-                    imageElement.src = images[i];
-                    await new Promise(resolve => imageElement.onload = resolve);
-                    const imgTensor = tf.browser.fromPixels(imageElement).resizeNearestNeighbor([224, 224]).toFloat().div(tf.scalar(255.0));
-                    xs.push(imgTensor);
-                    ys.push(classIndex);
-                }
-            }
-
-            const xsTensor = tf.stack(xs);
-            const ysTensor = tf.oneHot(tf.tensor1d(ys, 'int32'), numClasses);
+            const xsTensor = tf.stack(trainingDataInputs);
+            const ysTensor = tf.oneHot(tf.tensor1d(trainingDataOutputs, 'int32'), numClasses);
 
             await model.fit(xsTensor, ysTensor, {
-                epochs: epochs,
-                batchSize: batchSize,
+                epochs: parseInt(document.getElementById('epochs').value),
+                batchSize: parseInt(document.getElementById('batch-size').value),
                 callbacks: {
                     onEpochEnd: (epoch, logs) => {
                         const progress = document.getElementById('training-progress');
-                        progress.innerText = `에포크 ${epoch + 1}/${epochs}: 손실값 = ${logs.loss.toFixed(4)}, 정확도 = ${(logs.acc * 100).toFixed(2)}%`;
+                        progress.innerText = `에포크 ${epoch + 1}: 손실값 = ${logs.loss.toFixed(4)}, 정확도 = ${(logs.acc * 100).toFixed(2)}%`;
                         const progressBar = document.getElementById('progress-bar');
-                        progressBar.value = ((epoch + 1) / epochs) * 100;
-                        if (epoch + 1 === epochs) {
+                        progressBar.value = ((epoch + 1) / parseInt(document.getElementById('epochs').value)) * 100;
+                        if (epoch + 1 === parseInt(document.getElementById('epochs').value)) {
                             progress.innerText = '학습 완료';
                         }
                     }
@@ -420,37 +409,19 @@
 
             const video = document.getElementById('camera');
             const img = tf.browser.fromPixels(video)
-                            .resizeNearestNeighbor([224, 224])
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
                             .toFloat()
                             .div(tf.scalar(255.0))
                             .expandDims();
 
-            const prediction = model.predict(img);
+            const features = mobilenet.predict(img);
+            const prediction = model.predict(features);
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
             const confidence = predictionData[classIndex];
 
-            const className = Object.keys(classes)[classIndex];
+            const className = CLASS_NAMES[classIndex];
             document.getElementById('prediction-result').innerText = `예측된 클래스: ${className} (신뢰도: ${(confidence * 100).toFixed(2)}%)`;
-        }
-
-        // Export model
-        async function exportModel() {
-            if (model) {
-                await model.save('downloads://my-trained-model');
-                alert('모델이 성공적으로 내보내졌습니다');
-            } else {
-                alert('먼저 모델을 학습하세요');
-            }
-        }
-
-        // Import model
-        async function importModel(event) {
-            const fileInput = event.target;
-            if (fileInput.files.length > 0) {
-                model = await tf.loadLayersModel(tf.io.browserFiles(fileInput.files));
-                alert('모델이 성공적으로 불러와졌습니다');
-            }
         }
 
         // Start the camera when the page loads
