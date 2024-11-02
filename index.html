@@ -379,6 +379,8 @@
                     }
                 }
             });
+            xsTensor.dispose();
+            ysTensor.dispose();
 
             alert('모델 학습이 완료되었습니다');
         }
@@ -408,14 +410,14 @@
             }
 
             const video = document.getElementById('camera');
-            const img = tf.browser.fromPixels(video)
+            const img = tf.tidy(() => tf.browser.fromPixels(video)
                             .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
                             .toFloat()
                             .div(tf.scalar(255.0))
-                            .expandDims();
+                            .expandDims());
 
-            const features = mobilenet.predict(img);
-            const prediction = model.predict(features);
+            const features = tf.tidy(() => mobilenet.predict(img));
+            const prediction = tf.tidy(() => model.predict(features));
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
             const confidence = predictionData[classIndex];
