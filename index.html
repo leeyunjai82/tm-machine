@@ -300,8 +300,18 @@
 
         // Select a class
         function selectClass(className) {
-            gatherDataState = CLASS_NAMES.indexOf(className);
-        }
+    // Clear previous selection
+    document.querySelectorAll('.class-container').forEach(container => {
+        container.classList.remove('selected');
+    });
+
+    // Update gatherDataState and highlight selected class
+    gatherDataState = CLASS_NAMES.indexOf(className);
+    const selectedClassContainer = document.getElementById(`class-${className}`);
+    if (selectedClassContainer) {
+        selectedClassContainer.classList.add('selected');
+    }
+}
 
         // Capture images when button is held down
         function startCapturingImages() {
@@ -373,7 +383,7 @@
                 metrics: ['accuracy']
             });
 
-            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 7 * 7 * 256]);
+            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 1280]);
             const ysTensor = tf.oneHot(tf.tensor1d(trainingDataOutputs, 'int32'), numClasses);
 
             await model.fit(xsTensor, ysTensor, {
@@ -428,7 +438,7 @@
                             .div(tf.scalar(255.0))
                             .expandDims());
 
-            const features = tf.tidy(() => mobilenet.predict(img).reshape([1, 7 * 7 * 256]));
+            const features = tf.tidy(() => mobilenet.predict(img).reshape([1, 1280]));
             const prediction = tf.tidy(() => model.predict(features));
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
