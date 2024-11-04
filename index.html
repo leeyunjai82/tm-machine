@@ -194,7 +194,6 @@
             <div id="class-management">
                 <input type="text" id="class-name" placeholder="클래스 이름을 입력하세요" onkeydown="if (event.key === 'Enter') addClass()">
                 <button onclick="addClass()">클래스 추가</button>
-                <button onclick="downloadDataset()">데이터셋 다운로드</button>
             </div>
             <div id="class-list">
                 <!-- Dynamically added classes and image collections will appear here -->
@@ -300,8 +299,6 @@
                 downloadButton.onclick = () => downloadClassDataset(className);
                 classContainer.appendChild(downloadButton);
                 document.getElementById('class-list').appendChild(classContainer);
-                document.getElementById('class-name').value = '';
-            }
                 document.getElementById('class-name').value = '';
             }
         }
