@@ -53,7 +53,7 @@
     #class-name:focus {
         border-color: #4CAF50;
     }
-    button {
+    button, label.upload-button {
         padding: 12px 20px;
         font-size: 1.1em;
         margin: 8px;
@@ -64,7 +64,7 @@
         cursor: pointer;
         transition: background-color 0.3s, transform 0.2s;
     }
-    button:hover {
+    button:hover, label.upload-button:hover {
         background-color: #45a049;
         transform: scale(1.05);
     }
@@ -293,7 +293,7 @@
                 };
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `${className} 데이터셋 다운로드`;
+                downloadButton.innerText = `다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
@@ -308,7 +308,7 @@
                     uploadClassDataset(e, className);
                 };
                 const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `${className} 데이터셋 업로드`;
+                uploadButtonLabel.innerText = `업로드`;
                 uploadButtonLabel.classList.add('upload-button');
                 uploadButtonLabel.onclick = () => {
                     uploadButton.click();
@@ -506,7 +506,6 @@
             const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
             zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
             zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
-            zip.file('weightSpecs.json', JSON.stringify(modelArtifacts.weightSpecs));
             zip.file('labels.txt', CLASS_NAMES.join('\n'));
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const a = document.createElement('a');
@@ -523,8 +522,7 @@
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
                 const weightData = await zip.file('weights.bin').async('arraybuffer');
-                const weightSpecs = JSON.parse(await zip.file('weightSpecs.json').async('string'));
-                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightSpecs: weightSpecs, weightData: weightData });
+                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
