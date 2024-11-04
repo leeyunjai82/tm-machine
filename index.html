@@ -522,15 +522,18 @@
             const file = event.target.files[0];
             if (file) {
                 const zip = await JSZip.loadAsync(file);
-                const modelJson = await zip.file('model.json').async('string');
+                const modelJsonFile = zip.file('model.json');
                 const weightDataFile = zip.file('weights.bin');
-                if (!weightDataFile) {
-                    alert('weights.bin 파일이 누락되었습니다.');
+
+                if (!modelJsonFile || !weightDataFile) {
+                    alert('model.json 또는 weights.bin 파일이 누락되었습니다.');
                     return;
                 }
+
+                const modelJson = await modelJsonFile.async('string');
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [], weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
