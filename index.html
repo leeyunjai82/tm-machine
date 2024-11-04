@@ -294,7 +294,10 @@
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
                 downloadButton.innerText = `${className} 데이터셋 다운로드`;
-                downloadButton.onclick = () => downloadClassDataset(className);
+                downloadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    downloadClassDataset(className);
+                };
                 classContainer.appendChild(downloadButton);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
@@ -356,8 +359,8 @@
                         trainingDataInputs[index].dispose();
                         trainingDataInputs.splice(index, 1);
                         trainingDataOutputs.splice(index, 1);
-                        imageElement.remove();
                     }
+                    imageElement.remove();
                 }
             };
             document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
