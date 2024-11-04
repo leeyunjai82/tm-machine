@@ -300,21 +300,13 @@
                 };
                 classContainer.appendChild(downloadButton);
                 // Add upload button for each class
-                const uploadButton = document.createElement('input');
-                uploadButton.type = 'file';
-                uploadButton.accept = '.zip';
-                uploadButton.style.display = 'none';
-                uploadButton.onchange = (e) => {
-                    uploadClassDataset(e, className);
-                };
-                const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `데이터셋 업로드`;
-                uploadButtonLabel.classList.add('upload-button');
-                uploadButtonLabel.onclick = () => {
-                    uploadButton.click();
+                const uploadButton = document.createElement('button');
+                uploadButton.innerText = `데이터셋 업로드`;
+                uploadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById('model-upload').click();
                 };
                 classContainer.appendChild(uploadButton);
-                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
@@ -530,12 +522,7 @@
                 }
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const weightSpecs = modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [];
-                if (weightSpecs.length === 0) {
-                    alert('weightsManifest 정보가 누락되었습니다. 올바른 모델 파일을 선택하세요.');
-                    return;
-                }
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs, weightData });
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [], weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
