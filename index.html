@@ -442,13 +442,11 @@
                 previewing = false;
                 previewStatus.style.visibility = 'hidden';
                 document.getElementById('prediction-result').innerText = '아직 예측이 없습니다';
-                predict = false;
             } else {
                 previewInterval = setInterval(() => predictImage(), 1000); // Predict every second
                 previewing = true;
                 previewStatus.innerText = '(미리보기 실행 중)';
                 previewStatus.style.visibility = 'visible';
-                predict = true;
             }
         }
 
@@ -559,10 +557,24 @@
                     imgElement.className = 'thumbnail';
                     imgElement.onclick = function() {
                         if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                            const index = trainingDataInputs.findIndex(input => input === imgElement.tensor);
+                            if (index > -1) {
+                                trainingDataInputs[index].dispose();
+                                trainingDataInputs.splice(index, 1);
+                                trainingDataOutputs.splice(index, 1);
+                            }
                             imgElement.remove();
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+
+                    // Add the uploaded image to training data
+                    const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
+                    imgElement.tensor = imgTensor;
+                    const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
+
+                    trainingDataInputs.push(features);
+                    trainingDataOutputs.push(CLASS_NAMES.indexOf(className));
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
