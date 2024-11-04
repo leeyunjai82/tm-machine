@@ -391,6 +391,11 @@
 
         // Train model using MobileNet for transfer learning
         async function trainAndPredict() {
+            if (trainingDataInputs.length === 0) {
+                alert('학습할 데이터가 없습니다. 이미지를 추가해주세요.');
+                return;
+            }
+
             predict = false;
             document.getElementById('training-progress').innerText = 'Training ...';
             tf.util.shuffleCombo(trainingDataInputs, trainingDataOutputs);
@@ -487,6 +492,7 @@
             for (const [index, bin] of modelArtifacts.weightData.entries()) {
                 zip.file(`weights${index}.bin`, new Uint8Array(bin));
             }
+            zip.file('labels.txt', CLASS_NAMES.join('\n'));
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(content);
@@ -505,6 +511,12 @@
                 const weightData = await Promise.all(weightKeys.map(key => zip.file(key).async('arraybuffer')));
                 const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
                 model = await tf.loadLayersModel(handler);
+
+                const labelsFile = zip.file('labels.txt');
+                if (labelsFile) {
+                    const labelsText = await labelsFile.async('string');
+                    CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
+                }
                 alert('모델이 성공적으로 불러와졌습니다.');
                 document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
