@@ -414,7 +414,7 @@
                 previewStatus.style.visibility = 'hidden';
                 document.getElementById('prediction-result').innerText = '아직 예측이 없습니다';
             } else {
-                previewInterval = setInterval(predictImage, 1000); // Predict every second
+                previewInterval = setInterval(() => predictImage(), 1000); // Predict every second
                 previewing = true;
                 previewStatus.innerText = '(미리보기 실행 중)';
                 previewStatus.style.visibility = 'visible';
@@ -453,13 +453,14 @@
         function predictLoop() {
             if (predict) {
                 tf.tidy(function () {
-                    let imageFeatures = calculateFeaturesOnCurrentFrame();
-                    predictImage(imageFeatures);
+                    const video = document.getElementById('camera');
+                    const imgTensor = tf.browser.fromPixels(video).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255)).expandDims();
+                    const features = mobilenet.predict(imgTensor).flatten();
+                    predictImage(features);
                 });
                 window.requestAnimationFrame(predictLoop);
             }
         }
-
     </script>
 </body>
 </html>
