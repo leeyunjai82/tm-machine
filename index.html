@@ -53,7 +53,7 @@
     #class-name:focus {
         border-color: #4CAF50;
     }
-    button, label.upload-button {
+    button {
         padding: 12px 20px;
         font-size: 1.1em;
         margin: 8px;
@@ -64,7 +64,7 @@
         cursor: pointer;
         transition: background-color 0.3s, transform 0.2s;
     }
-    button:hover, label.upload-button:hover {
+    button:hover {
         background-color: #45a049;
         transform: scale(1.05);
     }
@@ -217,9 +217,9 @@
             <!-- Train, Export, and Import Model Buttons -->
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
-                <button onclick="togglePredictImage()">미리보기 토글</button>
+                <button onclick="togglePredictImage()">미리보기 (추론/카메라)</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
-                <label for="model-upload" class="upload-button">모델 불러오기 (ZIP)</label>
+                <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
@@ -307,7 +307,7 @@
                 uploadButton.onchange = (e) => {
                     uploadClassDataset(e, className);
                 };
-                const uploadButtonLabel = document.createElement('label');
+                const uploadButtonLabel = document.createElement('button');
                 uploadButtonLabel.innerText = `업로드`;
                 uploadButtonLabel.classList.add('upload-button');
                 uploadButtonLabel.onclick = () => {
@@ -522,7 +522,7 @@
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
                 const weightData = await zip.file('weights.bin').async('arraybuffer');
-                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
+                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData, weightSpecs: [] });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
