@@ -340,25 +340,28 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL('image/png');
 
             // Add image to the selected class
             const className = CLASS_NAMES[gatherDataState];
             const imageElement = document.createElement('img');
-            imageElement.src = imageData;
+            imageElement.src = canvas.toDataURL('image/png');
             imageElement.className = 'thumbnail';
             imageElement.onclick = function() {
                 if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                    const index = trainingDataInputs.indexOf(imageData);
+                    const index = trainingDataInputs.indexOf(imgTensor);
                     if (index > -1) {
                         trainingDataInputs.splice(index, 1);
+                        trainingDataOutputs.splice(index, 1);
                         imageElement.remove();
                     }
                 }
             };
             document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
+
             const imgTensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
-            trainingDataInputs.push(imgTensor);
+            const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
+
+            trainingDataInputs.push(features);
             trainingDataOutputs.push(gatherDataState);
         }
 
@@ -383,7 +386,7 @@
 
             let results = await model.fit(inputsAsTensor, oneHotOutputs, {
                 shuffle: true,
-                batchSize: 5,
+                batchSize: parseInt(document.getElementById('batch-size').value),
                 epochs: parseInt(document.getElementById('epochs').value),
                 callbacks: { onEpochEnd: logProgress }
             });
