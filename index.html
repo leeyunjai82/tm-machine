@@ -374,27 +374,34 @@
             if (file) {
                 const zip = await JSZip.loadAsync(file);
                 const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
+                const imageCollection = document.querySelector(`#class-${className} .image-collection`);
+
                 for (const imageName of imageFiles) {
                     const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = document.createElement('img');
-                    imgElement.src = `data:image/png;base64,${imageData}`;
-                    imgElement.className = 'thumbnail';
-                    imgElement.onload = function() {
-                        // Add the image tensor to the training data after it's fully loaded
+                    const existingImages = Array.from(imageCollection.querySelectorAll('img')).map(img => img.src);
+                    
+                    // Prevent adding duplicate images
+                    if (!existingImages.includes(`data:image/png;base64,${imageData}`)) {
+                        const imgElement = document.createElement('img');
+                        imgElement.src = `data:image/png;base64,${imageData}`;
+                        imgElement.className = 'thumbnail';
+                        imgElement.onclick = function() {
+                            if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                                imgElement.remove();
+                            }
+                        };
+                        imageCollection.appendChild(imgElement);
+
+                        // Add the image tensor to the training data
                         const imgTensor = tf.tidy(() => {
                             return tf.browser.fromPixels(imgElement)
                                 .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
                                 .toFloat()
                                 .div(tf.scalar(255));
                         });
+
                         addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
-                    };
-                    imgElement.onclick = function() {
-                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            imgElement.remove();
-                        }
-                    };
-                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+                    }
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
