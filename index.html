@@ -279,7 +279,7 @@
         });
 
         // Add a new class
-        window.addClass = function() {
+        function addClass() {
             const className = document.getElementById('class-name').value;
             if (className && !CLASS_NAMES.includes(className)) {
                 CLASS_NAMES.push(className);
@@ -503,12 +503,11 @@
                 return;
             }
             const zip = new JSZip();
-            const modelSavePath = 'downloads://trained-model';
-            await model.save(modelSavePath);
-            const modelArtifacts = await tf.io.getSaveHandlers(modelSavePath)[0].load();
+            const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
             zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
-            const weightData = modelArtifacts.weightData;
-            zip.file('weights.bin', new Uint8Array(weightData));
+            for (let i = 0; i < modelArtifacts.weightData.byteLength; i++) {
+                zip.file(`weights${i}.bin`, new Uint8Array(modelArtifacts.weightData, i, 1));
+            }
             zip.file('labels.txt', CLASS_NAMES.join('\n'));
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const a = document.createElement('a');
@@ -524,7 +523,8 @@
             if (file) {
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
-                const weightData = await zip.file('weights.bin').async('arraybuffer');
+                const weightKeys = Object.keys(zip.files).filter(name => name.endsWith('.bin'));
+                const weightData = await Promise.all(weightKeys.map(key => zip.file(key).async('arraybuffer')));
                 const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
                 model = await tf.loadLayersModel(handler);
 
