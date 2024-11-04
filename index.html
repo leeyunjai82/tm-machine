@@ -364,47 +364,40 @@
 
         // Train model using MobileNet for transfer learning
         async function trainAndPredict() {
-            const numClasses = CLASS_NAMES.length;
-            if (numClasses === 0) {
-                alert('모델을 학습시키려면 적어도 하나의 클래스와 이미지가 필요합니다.');
-                return;
-            }
+            predict = false;
+            document.getElementById('training-progress').innerText = 'Training ...';
+            tf.util.shuffleCombo(trainingDataInputs, trainingDataOutputs);
 
-            document.getElementById('training-progress').innerText = '학습을 준비 중입니다...';
+            let outputsAsTensor = tf.tensor1d(trainingDataOutputs, 'int32');
+            let oneHotOutputs = tf.oneHot(outputsAsTensor, CLASS_NAMES.length);
+            let inputsAsTensor = tf.stack(trainingDataInputs);
 
             model = tf.sequential();
-            model.add(tf.layers.inputLayer({inputShape: [1280]}));
-            model.add(tf.layers.dense({units: 128, activation: 'relu'}));
-            model.add(tf.layers.dense({units: numClasses, activation: 'softmax'}));
-
+            model.add(tf.layers.dense({inputShape: [1280], units: 128, activation: 'relu'}));
+            model.add(tf.layers.dense({units: CLASS_NAMES.length, activation: 'softmax'}));
             model.compile({
                 optimizer: 'adam',
                 loss: 'categoricalCrossentropy',
                 metrics: ['accuracy']
             });
 
-            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 1280]);
-            const ysTensor = tf.oneHot(tf.tensor1d(trainingDataOutputs, 'int32'), numClasses);
-
-            await model.fit(xsTensor, ysTensor, {
+            let results = await model.fit(inputsAsTensor, oneHotOutputs, {
+                shuffle: true,
+                batchSize: 5,
                 epochs: parseInt(document.getElementById('epochs').value),
-                batchSize: parseInt(document.getElementById('batch-size').value),
-                callbacks: {
-                    onEpochEnd: (epoch, logs) => {
-                        const progress = document.getElementById('training-progress');
-                        progress.innerText = `에포크 ${epoch + 1}: 손실값 = ${logs.loss.toFixed(4)}, 정확도 = ${(logs.acc * 100).toFixed(2)}%`;
-                        const progressBar = document.getElementById('progress-bar');
-                        progressBar.value = ((epoch + 1) / parseInt(document.getElementById('epochs').value)) * 100;
-                        if (epoch + 1 === parseInt(document.getElementById('epochs').value)) {
-                            progress.innerText = '학습 완료';
-                        }
-                    }
-                }
+                callbacks: { onEpochEnd: logProgress }
             });
-            xsTensor.dispose();
-            ysTensor.dispose();
+            outputsAsTensor.dispose();
+            oneHotOutputs.dispose();
+            inputsAsTensor.dispose();
+            document.getElementById('training-progress').innerText = 'Trained Ok';
+            predict = true;
+            predictLoop();
+        }
 
-            alert('모델 학습이 완료되었습니다');
+        function logProgress(epoch, logs) {
+            console.log('Data for epoch ' + epoch, logs);
+            document.getElementById('training-progress').innerText = 'Data for epoch ' + epoch + ', ' + JSON.stringify(logs);
         }
 
         // Toggle prediction preview
