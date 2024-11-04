@@ -379,22 +379,22 @@
                     const imgElement = document.createElement('img');
                     imgElement.src = `data:image/png;base64,${imageData}`;
                     imgElement.className = 'thumbnail';
+                    imgElement.onload = function() {
+                        // Add the image tensor to the training data after it's fully loaded
+                        const imgTensor = tf.tidy(() => {
+                            return tf.browser.fromPixels(imgElement)
+                                .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                                .toFloat()
+                                .div(tf.scalar(255));
+                        });
+                        addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
+                    };
                     imgElement.onclick = function() {
                         if (confirm('이 이미지를 삭제하시겠습니까?')) {
                             imgElement.remove();
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
-
-                    // Add the image tensor to the training data
-                    const imgTensor = tf.tidy(() => {
-                        return tf.browser.fromPixels(imgElement)
-                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
-                            .toFloat()
-                            .div(tf.scalar(255));
-                    });
-
-                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
