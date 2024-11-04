@@ -449,6 +449,26 @@
             prediction.dispose();
         }
 
+        // Export trained model to download
+        async function exportModel() {
+            if (!model) {
+                alert('먼저 모델을 학습하세요');
+                return;
+            }
+            await model.save('downloads://trained-model');
+            alert('모델이 다운로드되었습니다.');
+        }
+
+        // Import model from file input
+        async function importModel(event) {
+            const file = event.target.files[0];
+            if (file) {
+                model = await tf.loadLayersModel(tf.io.browserFiles([file]));
+                alert('모델이 성공적으로 불러와졌습니다.');
+                document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
+            }
+        }
+
         // Start the camera when the page loads
         window.onload = () => {
             startCamera();
