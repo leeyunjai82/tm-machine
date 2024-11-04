@@ -218,8 +218,8 @@
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
-                <button onclick="exportModel()">모델 내보내기</button>
-                <label for="model-upload" class="upload-button">모델 불러오기</label>
+                <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
+                <label for="model-upload" class="upload-button">모델 불러오기 (ZIP)</label>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
@@ -299,6 +299,22 @@
                     downloadClassDataset(className);
                 };
                 classContainer.appendChild(downloadButton);
+                // Add upload button for each class
+                const uploadButton = document.createElement('input');
+                uploadButton.type = 'file';
+                uploadButton.accept = '.zip';
+                uploadButton.style.display = 'none';
+                uploadButton.onchange = (e) => {
+                    uploadClassDataset(e, className);
+                };
+                const uploadButtonLabel = document.createElement('label');
+                uploadButtonLabel.innerText = `${className} 데이터셋 업로드`;
+                uploadButtonLabel.classList.add('upload-button');
+                uploadButtonLabel.onclick = () => {
+                    uploadButton.click();
+                };
+                classContainer.appendChild(uploadButton);
+                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
@@ -457,21 +473,38 @@
             prediction.dispose();
         }
 
-        // Export trained model to download
-        async function exportModel() {
+        // Export trained model to ZIP
+        async function exportModelAsZip() {
             if (!model) {
                 alert('먼저 모델을 학습하세요');
                 return;
             }
-            await model.save('downloads://trained-model');
-            alert('모델이 다운로드되었습니다.');
+            const zip = new JSZip();
+            const modelSavePath = 'indexeddb://trained-model';
+            await model.save(modelSavePath);
+            const modelArtifacts = await tf.io.getSaveHandlers(modelSavePath)[0].load();
+            zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
+            for (const [index, bin] of modelArtifacts.weightData.entries()) {
+                zip.file(`weights${index}.bin`, new Uint8Array(bin));
+            }
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = 'trained-model.zip';
+                a.click();
+            });
         }
 
-        // Import model from file input
+        // Import model from ZIP
         async function importModel(event) {
             const file = event.target.files[0];
             if (file) {
-                model = await tf.loadLayersModel(tf.io.browserFiles([file]));
+                const zip = await JSZip.loadAsync(file);
+                const modelJson = await zip.file('model.json').async('string');
+                const weightKeys = Object.keys(zip.files).filter(name => name.endsWith('.bin'));
+                const weightData = await Promise.all(weightKeys.map(key => zip.file(key).async('arraybuffer')));
+                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
+                model = await tf.loadLayersModel(handler);
                 alert('모델이 성공적으로 불러와졌습니다.');
                 document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
@@ -497,6 +530,28 @@
                 a.download = `${className}_dataset.zip`;
                 a.click();
             });
+        }
+
+        // Upload dataset from ZIP
+        async function uploadClassDataset(event, className) {
+            const file = event.target.files[0];
+            if (file) {
+                const zip = await JSZip.loadAsync(file);
+                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
+                for (const imageName of imageFiles) {
+                    const imageData = await zip.file(imageName).async('base64');
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `data:image/png;base64,${imageData}`;
+                    imgElement.className = 'thumbnail';
+                    imgElement.onclick = function() {
+                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                            imgElement.remove();
+                        }
+                    };
+                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+                }
+                alert(`${className} 데이터셋이 업로드되었습니다.`);
+            }
         }
 
         // Start the camera when the page loads
