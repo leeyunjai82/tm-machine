@@ -184,17 +184,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이미지 학습 도구</title>
-    <script src="static/tf.min-3.11.0.js">function predictLoop() {
-            if (predict) {
-                tf.tidy(function () {
-                    let imageFeatures = calculateFeaturesOnCurrentFrame();
-                    predictImage(imageFeatures);
-                });
-                window.requestAnimationFrame(predictLoop);
-            }
-        }
-
-    </script>
+    <script src="static/tf.min-3.11.0.js"></script>
 </head>
 <body>
     <div class="container">
@@ -407,26 +397,6 @@
                 predict = true;
                 predictLoop();
             });
-        }));
-            model.add(tf.layers.dense({units: CLASS_NAMES.length, activation: 'softmax'}));
-            model.compile({
-                optimizer: 'adam',
-                loss: 'categoricalCrossentropy',
-                metrics: ['accuracy']
-            });
-
-            let results = await model.fit(inputsAsTensor, oneHotOutputs, {
-                shuffle: true,
-                batchSize: parseInt(document.getElementById('batch-size').value),
-                epochs: parseInt(document.getElementById('epochs').value),
-                callbacks: { onEpochEnd: logProgress }
-            });
-            outputsAsTensor.dispose();
-            oneHotOutputs.dispose();
-            inputsAsTensor.dispose();
-            document.getElementById('training-progress').innerText = 'Trained Ok';
-            predict = true;
-            predictLoop();
         }
 
         function logProgress(epoch, logs) {
@@ -479,6 +449,17 @@
         window.onload = () => {
             startCamera();
         }
+
+        function predictLoop() {
+            if (predict) {
+                tf.tidy(function () {
+                    let imageFeatures = calculateFeaturesOnCurrentFrame();
+                    predictImage(imageFeatures);
+                });
+                window.requestAnimationFrame(predictLoop);
+            }
+        }
+
     </script>
 </body>
 </html>
