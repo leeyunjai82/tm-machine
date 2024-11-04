@@ -358,36 +358,67 @@
             }
 
             const video = document.getElementById('camera');
-            const canvas = document.createElement('canvas');
-            canvas.width = MOBILE_NET_INPUT_WIDTH;
-            canvas.height = MOBILE_NET_INPUT_HEIGHT;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, MOBILE_NET_INPUT_WIDTH, MOBILE_NET_INPUT_HEIGHT);
+            const imgTensor = tf.tidy(() => {
+                return tf.browser.fromPixels(video)
+                    .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                    .toFloat()
+                    .div(tf.scalar(255));
+            });
 
-            // Add image to the selected class
-            const className = CLASS_NAMES[gatherDataState];
-            const imageElement = document.createElement('img');
-            imageElement.src = canvas.toDataURL('image/png');
-            imageElement.className = 'thumbnail';
-            imageElement.onclick = function() {
-                if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                    const index = trainingDataInputs.findIndex(input => input === imageElement.tensor);
-                    if (index > -1) {
-                        trainingDataInputs[index].dispose();
-                        trainingDataInputs.splice(index, 1);
-                        trainingDataOutputs.splice(index, 1);
-                    }
-                    imageElement.remove();
+            addImageToClass(imgTensor, gatherDataState);
+        }
+
+        // Upload dataset from ZIP (Unified version)
+        async function uploadClassDataset(event, className) {
+            const file = event.target.files[0];
+            if (file) {
+                const zip = await JSZip.loadAsync(file);
+                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
+                for (const imageName of imageFiles) {
+                    const imageData = await zip.file(imageName).async('base64');
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `data:image/png;base64,${imageData}`;
+                    imgElement.className = 'thumbnail';
+                    imgElement.onclick = function() {
+                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                            imgElement.remove();
+                        }
+                    };
+                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+
+                    // Add the image tensor to the training data
+                    const imgTensor = tf.tidy(() => {
+                        return tf.browser.fromPixels(imgElement)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255));
+                    });
+
+                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
                 }
-            };
-            document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
+                alert(`${className} 데이터셋이 업로드되었습니다.`);
+            }
+        }
 
-            const imgTensor = tf.browser.fromPixels(canvas).toFloat().div(tf.scalar(255));
-            imageElement.tensor = imgTensor;
+        // Helper function to add image tensor to class and feature extraction
+        function addImageToClass(imgTensor, classIndex) {
             const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-
             trainingDataInputs.push(features);
-            trainingDataOutputs.push(gatherDataState);
+            trainingDataOutputs.push(classIndex);
+
+            // Display the thumbnail for visualization
+            const imageElement = document.createElement('img');
+            tf.browser.toPixels(imgTensor).then((pixels) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = MOBILE_NET_INPUT_WIDTH;
+                canvas.height = MOBILE_NET_INPUT_HEIGHT;
+                const ctx = canvas.getContext('2d');
+                const imageData = new ImageData(pixels, MOBILE_NET_INPUT_WIDTH, MOBILE_NET_INPUT_HEIGHT);
+                ctx.putImageData(imageData, 0, 0);
+                imageElement.src = canvas.toDataURL();
+                imageElement.className = 'thumbnail';
+                document.querySelector(`#class-${CLASS_NAMES[classIndex]} .image-collection`).appendChild(imageElement);
+            });
         }
 
         // Train model using MobileNet for transfer learning
@@ -543,34 +574,6 @@
                 a.download = `${className}_dataset.zip`;
                 a.click();
             });
-        }
-
-        // Upload dataset from ZIP
-        async function uploadClassDataset(event, className) {
-            const file = event.target.files[0];
-            if (file) {
-                const zip = await JSZip.loadAsync(file);
-                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
-                for (const imageName of imageFiles) {
-                    const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = document.createElement('img');
-                    imgElement.src = `data:image/png;base64,${imageData}`;
-                    imgElement.className = 'thumbnail';
-                    imgElement.onclick = function() {
-                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            imgElement.remove();
-                        }
-                    };
-                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
-                    // Add the image tensor to the training data
-                    const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
-                    imgElement.tensor = imgTensor;
-                    const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-                    trainingDataInputs.push(features);
-                    trainingDataOutputs.push(CLASS_NAMES.indexOf(className));
-                }
-                alert(`${className} 데이터셋이 업로드되었습니다.`);
-            }
         }
 
         // Start the camera when the page loads
