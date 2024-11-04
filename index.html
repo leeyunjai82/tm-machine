@@ -268,15 +268,12 @@
             const layer = tmp_model.getLayer('global_average_pooling2d_1');
             mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
 
-            // Warm up the model by passing zeros through it once.
-            tf.tidy(function () {
-                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
-            });
+            // Ensure the model is fully loaded before proceeding
+            await mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
+            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
         }
 
-        loadMobileNetFeatureModel().then(() => {
-            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
-        });
+        loadMobileNetFeatureModel();
 
         // Add a new class
         function addClass() {
