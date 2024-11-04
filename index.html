@@ -219,7 +219,7 @@
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
-                <label for="model-upload" class="upload-button"><button>모델 불러오기 (ZIP)</button></label>
+                <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
@@ -530,7 +530,12 @@
                 }
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [], weightData });
+                const weightSpecs = modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [];
+                if (weightSpecs.length === 0) {
+                    alert('weightsManifest 정보가 누락되었습니다. 올바른 모델 파일을 선택하세요.');
+                    return;
+                }
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs, weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
