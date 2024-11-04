@@ -376,7 +376,7 @@
                 const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
                 for (const imageName of imageFiles) {
                     const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = document.createElement('img');
+                    const imgElement = new Image();
                     imgElement.src = `data:image/png;base64,${imageData}`;
                     imgElement.className = 'thumbnail';
                     imgElement.onload = function() {
