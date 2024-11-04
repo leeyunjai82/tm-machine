@@ -181,9 +181,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이미지 학습 도구</title>
+    <script src="static/jszip.min.js"></script>
     <script src="static/tf.min-3.11.0.js"></script>
 </head>
 <body>
@@ -353,7 +351,7 @@
             imageElement.className = 'thumbnail';
             imageElement.onclick = function() {
                 if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                    const index = trainingDataInputs.findIndex(input => input === imgTensor);
+                    const index = trainingDataInputs.findIndex(input => input === imageElement.tensor);
                     if (index > -1) {
                         trainingDataInputs[index].dispose();
                         trainingDataInputs.splice(index, 1);
@@ -365,6 +363,7 @@
             document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
 
             const imgTensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
+            imageElement.tensor = imgTensor;
             const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
 
             trainingDataInputs.push(features);
