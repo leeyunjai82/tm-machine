@@ -293,7 +293,7 @@
                 };
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `데이터셋 다운로드`;
+                downloadButton.innerText = `다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
@@ -301,7 +301,7 @@
                 classContainer.appendChild(downloadButton);
                 // Add upload button for each class
                 const uploadButton = document.createElement('button');
-                uploadButton.innerText = `데이터셋 업로드`;
+                uploadButton.innerText = `업로드`;
                 uploadButton.onclick = () => {
                     document.getElementById(`upload-${className}`).click();
                 };
