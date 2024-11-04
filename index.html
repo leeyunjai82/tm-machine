@@ -359,9 +359,10 @@
 
             const video = document.getElementById('camera');
             const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.width = MOBILE_NET_INPUT_WIDTH;
+            canvas.height = MOBILE_NET_INPUT_HEIGHT;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, MOBILE_NET_INPUT_WIDTH, MOBILE_NET_INPUT_HEIGHT);
 
             // Add image to the selected class
             const className = CLASS_NAMES[gatherDataState];
@@ -381,7 +382,7 @@
             };
             document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
 
-            const imgTensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
+            const imgTensor = tf.browser.fromPixels(canvas).toFloat().div(tf.scalar(255));
             imageElement.tensor = imgTensor;
             const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
 
@@ -561,10 +562,10 @@
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
-
+                    // Add the image tensor to the training data
                     const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
+                    imgElement.tensor = imgTensor;
                     const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-
                     trainingDataInputs.push(features);
                     trainingDataOutputs.push(CLASS_NAMES.indexOf(className));
                 }
