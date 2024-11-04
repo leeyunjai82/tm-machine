@@ -184,7 +184,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이미지 학습 도구</title>
-    <script src="static/tf.min-3.11.0.js"></script>
+    <script src="static/tf.min-3.11.0.js">function predictLoop() {
+            if (predict) {
+                tf.tidy(function () {
+                    let imageFeatures = calculateFeaturesOnCurrentFrame();
+                    predictImage(imageFeatures);
+                });
+                window.requestAnimationFrame(predictLoop);
+            }
+        }
+
+    </script>
 </head>
 <body>
     <div class="container">
@@ -377,6 +387,27 @@
 
             model = tf.sequential();
             model.add(tf.layers.dense({inputShape: [1280], units: 128, activation: 'relu'}));
+            model.add(tf.layers.dense({units: CLASS_NAMES.length, activation: 'softmax'}));
+            model.compile({
+                optimizer: 'adam',
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy']
+            });
+
+            model.fit(inputsAsTensor, oneHotOutputs, {
+                shuffle: true,
+                batchSize: parseInt(document.getElementById('batch-size').value),
+                epochs: parseInt(document.getElementById('epochs').value),
+                callbacks: { onEpochEnd: logProgress }
+            }).then(() => {
+                outputsAsTensor.dispose();
+                oneHotOutputs.dispose();
+                inputsAsTensor.dispose();
+                document.getElementById('training-progress').innerText = 'Trained Ok';
+                predict = true;
+                predictLoop();
+            });
+        }));
             model.add(tf.layers.dense({units: CLASS_NAMES.length, activation: 'softmax'}));
             model.compile({
                 optimizer: 'adam',
