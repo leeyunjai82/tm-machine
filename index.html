@@ -219,7 +219,7 @@
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
-                <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
+                <label for="model-upload" class="upload-button">모델 불러오기 (ZIP)</label>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
@@ -293,28 +293,28 @@
                 };
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `데이터셋 다운로드`;
+                downloadButton.innerText = `${className} 데이터셋 다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
                 };
                 classContainer.appendChild(downloadButton);
                 // Add upload button for each class
-                const uploadButton = document.createElement('button');
-                uploadButton.innerText = `데이터셋 업로드`;
-                uploadButton.onclick = () => {
-                    document.getElementById(`upload-${className}`).click();
-                };
-                const uploadInput = document.createElement('input');
-                uploadInput.type = 'file';
-                uploadInput.accept = '.zip';
-                uploadInput.id = `upload-${className}`;
-                uploadInput.style.display = 'none';
-                uploadInput.onchange = (e) => {
+                const uploadButton = document.createElement('input');
+                uploadButton.type = 'file';
+                uploadButton.accept = '.zip';
+                uploadButton.style.display = 'none';
+                uploadButton.onchange = (e) => {
                     uploadClassDataset(e, className);
                 };
-                classContainer.appendChild(uploadInput);
+                const uploadButtonLabel = document.createElement('label');
+                uploadButtonLabel.innerText = `${className} 데이터셋 업로드`;
+                uploadButtonLabel.classList.add('upload-button');
+                uploadButtonLabel.onclick = () => {
+                    uploadButton.click();
+                };
                 classContainer.appendChild(uploadButton);
+                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
@@ -376,25 +376,25 @@
                 const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
                 for (const imageName of imageFiles) {
                     const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = new Image();
+                    const imgElement = document.createElement('img');
                     imgElement.src = `data:image/png;base64,${imageData}`;
                     imgElement.className = 'thumbnail';
-                    imgElement.onload = function() {
-                        // Add the image tensor to the training data after it is fully loaded
-                        const imgTensor = tf.tidy(() => {
-                            return tf.browser.fromPixels(imgElement)
-                                .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
-                                .toFloat()
-                                .div(tf.scalar(255));
-                        });
-                        addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
-                    };
                     imgElement.onclick = function() {
                         if (confirm('이 이미지를 삭제하시겠습니까?')) {
                             imgElement.remove();
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+
+                    // Add the image tensor to the training data
+                    const imgTensor = tf.tidy(() => {
+                        return tf.browser.fromPixels(imgElement)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255));
+                    });
+
+                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
@@ -530,8 +530,7 @@
                 }
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const weightSpecs = modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [];
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs, weightData });
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
