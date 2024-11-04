@@ -506,6 +506,7 @@
             const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
             zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
             zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
+            zip.file('weightSpecs.json', JSON.stringify(modelArtifacts.weightSpecs));
             zip.file('labels.txt', CLASS_NAMES.join('\n'));
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const a = document.createElement('a');
@@ -522,7 +523,8 @@
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
                 const weightData = await zip.file('weights.bin').async('arraybuffer');
-                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData });
+                const weightSpecs = await zip.file('weightSpecs.json').async('string');
+                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightSpecs: JSON.parse(weightSpecs), weightData: weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
