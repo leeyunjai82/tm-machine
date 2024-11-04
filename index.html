@@ -557,18 +557,12 @@
                     imgElement.className = 'thumbnail';
                     imgElement.onclick = function() {
                         if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            const index = trainingDataInputs.findIndex(input => input === imgElement.tensor);
-                            if (index > -1) {
-                                trainingDataInputs[index].dispose();
-                                trainingDataInputs.splice(index, 1);
-                                trainingDataOutputs.splice(index, 1);
-                            }
                             imgElement.remove();
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
 
-                    // Add the uploaded image to training data
+                    // Convert image to tensor and get features using MobileNet
                     const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
                     imgElement.tensor = imgTensor;
                     const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
