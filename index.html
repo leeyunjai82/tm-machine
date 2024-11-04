@@ -562,9 +562,7 @@
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
 
-                    // Convert image to tensor and get features using MobileNet
                     const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
-                    imgElement.tensor = imgTensor;
                     const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
 
                     trainingDataInputs.push(features);
