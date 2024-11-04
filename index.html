@@ -442,11 +442,13 @@
                 previewing = false;
                 previewStatus.style.visibility = 'hidden';
                 document.getElementById('prediction-result').innerText = '아직 예측이 없습니다';
+                predict = false;
             } else {
                 previewInterval = setInterval(() => predictImage(), 1000); // Predict every second
                 previewing = true;
                 previewStatus.innerText = '(미리보기 실행 중)';
                 previewStatus.style.visibility = 'visible';
+                predict = true;
             }
         }
 
