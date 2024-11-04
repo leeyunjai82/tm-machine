@@ -300,18 +300,18 @@
 
         // Select a class
         function selectClass(className) {
-    // Clear previous selection
-    document.querySelectorAll('.class-container').forEach(container => {
-        container.classList.remove('selected');
-    });
+            // Clear previous selection
+            document.querySelectorAll('.class-container').forEach(container => {
+                container.classList.remove('selected');
+            });
 
-    // Update gatherDataState and highlight selected class
-    gatherDataState = CLASS_NAMES.indexOf(className);
-    const selectedClassContainer = document.getElementById(`class-${className}`);
-    if (selectedClassContainer) {
-        selectedClassContainer.classList.add('selected');
-    }
-}
+            // Update gatherDataState and highlight selected class
+            gatherDataState = CLASS_NAMES.indexOf(className);
+            const selectedClassContainer = document.getElementById(`class-${className}`);
+            if (selectedClassContainer) {
+                selectedClassContainer.classList.add('selected');
+            }
+        }
 
         // Capture images when button is held down
         function startCapturingImages() {
@@ -373,7 +373,7 @@
             document.getElementById('training-progress').innerText = '학습을 준비 중입니다...';
 
             model = tf.sequential();
-            model.add(tf.layers.inputLayer({inputShape: [1280]}));
+            model.add(tf.layers.inputLayer({inputShape: [7 * 7 * 256]}));
             model.add(tf.layers.dense({units: 128, activation: 'relu'}));
             model.add(tf.layers.dense({units: numClasses, activation: 'softmax'}));
 
@@ -439,7 +439,7 @@
                             .expandDims());
 
             const features = tf.tidy(() => mobilenet.predict(img).flatten());
-            const prediction = tf.tidy(() => model.predict(features));
+            const prediction = tf.tidy(() => model.predict(features.expandDims()));
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
             const confidence = predictionData[classIndex];
