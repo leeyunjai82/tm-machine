@@ -395,7 +395,7 @@
                 inputsAsTensor.dispose();
                 document.getElementById('training-progress').innerText = 'Trained Ok';
                 predict = true;
-                predictLoop();
+                togglePredictImage();
             });
         }
 
@@ -443,23 +443,15 @@
 
             const className = CLASS_NAMES[classIndex];
             document.getElementById('prediction-result').innerText = `예측된 클래스: ${className} (신뢰도: ${(confidence * 100).toFixed(2)}%)`;
+
+            img.dispose();
+            features.dispose();
+            prediction.dispose();
         }
 
         // Start the camera when the page loads
         window.onload = () => {
             startCamera();
-        }
-
-        function predictLoop() {
-            if (predict) {
-                tf.tidy(function () {
-                    const video = document.getElementById('camera');
-                    const imgTensor = tf.browser.fromPixels(video).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255)).expandDims();
-                    const features = mobilenet.predict(imgTensor).flatten();
-                    predictImage(features);
-                });
-                window.requestAnimationFrame(predictLoop);
-            }
         }
     </script>
 </body>
