@@ -522,7 +522,7 @@
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
                 const weightData = await zip.file('weights.bin').async('arraybuffer');
-                const weightSpecs = JSON.parse(modelJson).weightsManifest[0].weights;
+                const weightSpecs = JSON.parse(modelJson).weightsManifest ? JSON.parse(modelJson).weightsManifest[0].weights : [];
                 const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightSpecs, weightData });
                 model = await tf.loadLayersModel(handler);
 
