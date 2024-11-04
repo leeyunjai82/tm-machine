@@ -373,7 +373,7 @@
             document.getElementById('training-progress').innerText = '학습을 준비 중입니다...';
 
             model = tf.sequential();
-            model.add(tf.layers.inputLayer({inputShape: [7 * 7 * 256]}));
+            model.add(tf.layers.inputLayer({inputShape: [1280]}));
             model.add(tf.layers.dense({units: 128, activation: 'relu'}));
             model.add(tf.layers.dense({units: numClasses, activation: 'softmax'}));
 
@@ -383,7 +383,7 @@
                 metrics: ['accuracy']
             });
 
-            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 7 * 7 * 256]);
+            const xsTensor = tf.concat(trainingDataInputs, 0).reshape([trainingDataInputs.length, 1280]);
             const ysTensor = tf.oneHot(tf.tensor1d(trainingDataOutputs, 'int32'), numClasses);
 
             await model.fit(xsTensor, ysTensor, {
@@ -438,7 +438,7 @@
                             .div(tf.scalar(255.0))
                             .expandDims());
 
-            const features = tf.tidy(() => mobilenet.predict(img).reshape([1, 7 * 7 * 256]));
+            const features = tf.tidy(() => mobilenet.predict(img).flatten());
             const prediction = tf.tidy(() => model.predict(features.expandDims()));
             const predictionData = await prediction.data();
             const classIndex = prediction.argMax(-1).dataSync()[0];
