@@ -1,400 +1,150 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classification Training Tool</title>
     <script src="static/jszip.min.js"></script>
     <script src="static/tf.min-3.11.0.js"></script>
     <style>
         body {
-            font-family: 'Nanum Gothic', sans-serif;
-            background-color: #f9fafb;
-            color: #333;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
             margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: stretch;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        .container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-        }
-        .sidebar {
-            width: 25%;
             padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
         }
-        .main-content {
-            width: 75%;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-around;
-            position: relative;
-        }
-        .sidebar h2 {
-            text-align: center;
+        #file-container, #class-container {
             margin-bottom: 20px;
         }
-        #class-management {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
+        .class-item {
+            margin-bottom: 10px;
         }
-        #class-name {
-            padding: 12px;
-            font-size: 1.2em;
-            flex-grow: 1;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            transition: border-color 0.3s;
-        }
-        #class-name:focus {
-            border-color: #4CAF50;
-        }
-        button {
-            padding: 12px 20px;
-            font-size: 1.1em;
-            margin: 8px;
-            border: none;
-            border-radius: 8px;
-            background-color: #4CAF50;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        button:hover {
-            background-color: #45a049;
-            transform: scale(1.05);
-        }
-        .class-container {
-            cursor: pointer;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-        .class-container:hover {
-            background-color: #e0f7fa;
-            transform: scale(1.02);
-        }
-        .class-container.selected {
-            border: 2px solid #4CAF50;
-            background-color: #dcedc8;
-        }
-        .image-collection {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 10px;
-        }
-        .thumbnail {
-            width: 60px;
-            height: 60px;
+        img.thumbnail {
+            width: 100px;
+            height: 100px;
             object-fit: cover;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-        .thumbnail:hover {
-            transform: scale(1.1);
-        }
-        #camera-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 600px;
-        }
-        #camera { width: 100%; height: 400px; max-width: 600px; margin-bottom: 10px; }
-        #training-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            width: 100%;
-        }
-        #training-params {
-            display: flex;
-            justify-content: space-evenly;
-            gap: 10px;
-            margin-top: 15px;
-            width: 100%;
-            max-width: 600px;
-        }
-        #training-params label, #training-params input {
             margin: 5px;
         }
-        #training-buttons {
-            display: flex;
-            justify-content: space-evenly;
-            flex-wrap: wrap;
-            gap: 15px;
-            width: 100%;
-            max-width: 800px;
-        }
-        #progress-section {
-            margin-bottom: 20px;
-            width: 100%;
-            text-align: center;
-        }
-        #preview-status {
-            font-weight: bold;
-            color: #4CAF50;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        @media (max-width: 600px) {
-            .container {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .sidebar {
-                width: 100%;
-                height: 40%;
-                padding: 10px;
-                overflow-y: auto;
-            }
-            .main-content {
-                width: 100%;
-                height: 60%;
-                padding: 10px;
-            }
-            #camera {
-                width: 100%;
-                height: 200px;
-            }
-            button {
-                padding: 10px;
-                font-size: 1em;
-            }
+        #preview-container {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 클래스 관리를 위한 사이드바 -->
-        <div class="sidebar">
-            <h2>클래스 관리</h2>
-            <div id="class-management">
-                <input type="text" id="class-name" placeholder="클래스 이름을 입력하세요" onkeydown="if (event.key === 'Enter') addClass()">
-                <button onclick="addClass()">클래스 추가</button>
-            </div>
-            <div id="class-list">
-                <!-- 동적으로 추가된 클래스와 이미지 컬렉션이 여기에 표시됩니다 -->
-            </div>
-        </div>
-
-        <!-- 카메라와 모델 조작을 위한 메인 콘텐츠 -->
-        <div class="main-content">
-            <!-- 카메라 피드 및 캡처 -->
-            <div id="camera-section">
-                <video id="camera" autoplay playsinline></video>
-                <button id="capture-button" onmousedown="startCapturingImages()" onmouseup="stopCapturingImages()" onmouseleave="stopCapturingImages()">이미지 캡처</button>
-            </div>
-
-            <!-- 학습 매개변수 설정 -->
-            <div id="training-params">
-                <label for="epochs">에포크 수: </label>
-                <input type="number" id="epochs" value="15" min="1" max="100">
-                <label for="batch-size">배치 크기: </label>
-                <input type="number" id="batch-size" value="32" min="1" max="256">
-            </div>
-
-            <!-- 모델 학습, 내보내기, 불러오기 버튼 -->
-            <div id="training-buttons">
-                <button onclick="trainAndPredict()">모델 학습 시작</button>
-                <button onclick="togglePredictImage()">미리보기 토글</button>
-                <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
-                <label for="model-upload" class="upload-button">모델 불러오기 (ZIP)</label>
-                <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
-            </div>
-
-            <!-- 학습 진행 상황 -->
-            <div id="progress-section">
-                <p id="training-progress">학습이 시작되지 않았습니다</p>
-                <progress id="progress-bar" value="0" max="100"></progress>
-            </div>
-
-            <!-- 예측 결과 -->
-            <div id="prediction-section">
-                <h3>예측 결과:</h3>
-                <p id="prediction-result">아직 예측이 없습니다</p>
-                <p id="preview-status" style="visibility: hidden;"></p>
-            </div>
-        </div>
+    <h1>Image Classification Training Tool</h1>
+    <div id="file-container">
+        <button onclick="addNewClass()">Add New Class</button>
     </div>
-
+    <div id="class-container">
+        <!-- Classes will be added here dynamically -->
+    </div>
+    <div>
+        <button onclick="trainModel()">Train Model</button>
+        <button onclick="downloadModel()">Download Model</button>
+    </div>
+    <div id="preview-container">
+        <h2>Model Preview</h2>
+        <video id="webcam" autoplay width="224" height="224"></video>
+        <button onclick="startPreview()">Start Preview</button>
+        <h3>Predictions</h3>
+        <ul id="predictions"></ul>
+    </div>
     <script>
-        const MOBILE_NET_INPUT_WIDTH = 224;
-        const MOBILE_NET_INPUT_HEIGHT = 224;
-        const CLASS_NAMES = [];
-        let mobilenet;
+        let classes = [];
+        let imagesByClass = {};
         let model;
-        let gatherDataState = -1;
-        let trainingDataInputs = [];
-        let trainingDataOutputs = [];
-        let predict = false;
-        let webcamStream;
-        let capturing = false;
-        let captureInterval;
-        let previewing = false;
-        let previewInterval = null;
+        let webcamElement;
 
-        // 웹캠 시작
-        async function startCamera() {
-            webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            document.getElementById('camera').srcObject = webcamStream;
-        }
-
-        // MobileNet 피처 모델 로드
-        async function loadMobileNetFeatureModel() {
-            const URL = 'static/model.json';
-            let tmp_model = await tf.loadLayersModel(URL);
-            const layer = tmp_model.getLayer('global_average_pooling2d_1');
-            mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
-
-            // 모델을 한번 워밍업합니다.
-            tf.tidy(function () {
-                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
-            });
-        }
-
-        loadMobileNetFeatureModel().then(() => {
-            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
-        });
-
-        // 새로운 클래스 추가
-        function addClass() {
-            const className = document.getElementById('class-name').value;
-            if (className && !CLASS_NAMES.includes(className)) {
-                CLASS_NAMES.push(className);
-                // 새로운 클래스 컨테이너 생성
-                const classContainer = document.createElement('div');
-                classContainer.className = 'class-container';
-                classContainer.id = `class-${className}`;
-                classContainer.innerHTML = `<h3 onclick="selectClass('${className}')">${className}</h3><div class="image-collection"></div>`;
-                classContainer.onclick = () => {
-                    selectClass(className);
-                };
-                // 각 클래스에 다운로드 버튼 추가
-                const downloadButton = document.createElement('button');
-                downloadButton.innerText = `${className} 데이터셋 다운로드`;
-                downloadButton.onclick = (e) => {
-                    e.stopPropagation();
-                    downloadClassDataset(className);
-                };
-                classContainer.appendChild(downloadButton);
-                // 각 클래스에 업로드 버튼 추가
-                const uploadButton = document.createElement('input');
-                uploadButton.type = 'file';
-                uploadButton.accept = '.zip';
-                uploadButton.style.display = 'none';
-                uploadButton.onchange = (e) => {
-                    uploadClassDataset(e, className);
-                };
-                const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `${className} 데이터셋 업로드`;
-                uploadButtonLabel.classList.add('upload-button');
-                uploadButtonLabel.onclick = () => {
-                    uploadButton.click();
-                };
-                classContainer.appendChild(uploadButton);
-                classContainer.appendChild(uploadButtonLabel);
-                document.getElementById('class-list').appendChild(classContainer);
-                document.getElementById('class-name').value = '';
+        async function addNewClass() {
+            let className = prompt('Enter a name for the new class:');
+            if (className) {
+                classes.push(className);
+                imagesByClass[className] = [];
+                displayClass(className);
             }
         }
 
-        // 클래스 선택
-        function selectClass(className) {
-            // 이전 선택을 해제합니다.
-            document.querySelectorAll('.class-container').forEach(container => {
-                container.classList.remove('selected');
-            });
+        function displayClass(className) {
+            let classDiv = document.createElement('div');
+            classDiv.className = 'class-item';
+            classDiv.innerHTML = `<strong>${className}</strong> <input type="file" accept="image/*" onchange="handleImageUpload('${className}', this)" multiple />`;
+            let imageContainer = document.createElement('div');
+            imageContainer.id = `image-container-${className}`;
+            classDiv.appendChild(imageContainer);
+            document.getElementById('class-container').appendChild(classDiv);
+        }
 
-            // gatherDataState를 업데이트하고 선택한 클래스를 강조합니다.
-            gatherDataState = CLASS_NAMES.indexOf(className);
-            const selectedClassContainer = document.getElementById(`class-${className}`);
-            if (selectedClassContainer) {
-                selectedClassContainer.classList.add('selected');
+        function handleImageUpload(className, input) {
+            let files = input.files;
+            for (let i = 0; i < files.length; i++) {
+                let reader = new FileReader();
+                reader.onload = function(event) {
+                    let img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.className = 'thumbnail';
+                    document.getElementById(`image-container-${className}`).appendChild(img);
+                    imagesByClass[className].push(event.target.result);
+                };
+                reader.readAsDataURL(files[i]);
             }
         }
 
-        // 버튼을 누르고 있는 동안 이미지 캡처
-        function startCapturingImages() {
-            capturing = true;
-            captureInterval = setInterval(() => {
-                if (capturing) {
-                    captureImage();
-                }
-            }, 200); // 200ms마다 이미지 캡처
-        }
+        async function trainModel() {
+            const mobilenet = await tf.loadLayersModel('https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v2_1.0_224/model.json');
+            const layer = mobilenet.getLayer('global_average_pooling2d');
+            const truncatedModel = tf.model({inputs: mobilenet.inputs, outputs: layer.output});
 
-        function stopCapturingImages() {
-            capturing = false;
-            clearInterval(captureInterval);
-        }
+            const newModel = tf.sequential();
+            newModel.add(tf.layers.inputLayer({inputShape: [7, 7, 1280]}));
+            newModel.add(tf.layers.flatten());
+            newModel.add(tf.layers.dense({units: 100, activation: 'relu'}));
+            newModel.add(tf.layers.dense({units: classes.length, activation: 'softmax'}));
 
-        // 웹캠에서 이미지 캡처
-        function captureImage() {
-            if (gatherDataState === -1) {
-                alert('이미지를 추가할 클래스를 선택하세요.');
-                return;
-            }
-
-            const video = document.getElementById('camera');
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-
-            // 선택한 클래스에 이미지 추가
-            const className = CLASS_NAMES[gatherDataState];
-            const imageElement = document.createElement('img');
-            imageElement.src = canvas.toDataURL('image/png');
-            imageElement.className = 'thumbnail';
-            imageElement.onclick = function() {
-                if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                    imageElement.remove();
-                }
-            };
-            document.querySelector(`#class-${className} .image-collection`).appendChild(imageElement);
-
-            const imgTensor = tf.browser.fromPixels(canvas).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
-            const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-
-            trainingDataInputs.push(features);
-            trainingDataOutputs.push(gatherDataState);
-        }
-
-        // ZIP 파일에서 데이터셋 업로드
-        async function uploadClassDataset(event, className) {
-            const file = event.target.files[0];
-            if (file) {
-                const zip = await JSZip.loadAsync(file);
-                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
-                for (const imageName of imageFiles) {
-                    const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = document.createElement('img');
-                    imgElement.src = `data:image/png;base64,${imageData}`;
-                    imgElement.className = 'thumbnail';
-                    imgElement.onclick = function() {
-                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            imgElement.remove();
-                        }
+            let xs = [];
+            let ys = [];
+            classes.forEach((className, classIndex) => {
+                imagesByClass[className].forEach(imgData => {
+                    const img = new Image();
+                    img.src = imgData;
+                    img.onload = () => {
+                        let inputTensor = tf.browser.fromPixels(img).resizeNearestNeighbor([224, 224]).toFloat().div(tf.scalar(255.0)).expandDims();
+                        let feature = truncatedModel.predict(inputTensor);
+                        xs.push(feature);
+                        ys.push(classIndex);
                     };
-                    document.querySelector(`#class-${
+                });
+            });
+
+            const xTrain = tf.concat(xs);
+            const yTrain = tf.tensor1d(ys, 'int32');
+
+            newModel.compile({optimizer: 'adam', loss: 'sparseCategoricalCrossentropy', metrics: ['accuracy']});
+            await newModel.fit(xTrain, yTrain, {epochs: 10});
+            model = newModel;
+        }
+
+        function downloadModel() {
+            if (model) {
+                model.save('downloads://trained_model');
+            } else {
+                alert('Please train the model first!');
+            }
+        }
+
+        async function startPreview() {
+            if (!webcamElement) {
+                webcamElement = document.getElementById('webcam');
+                await tf.data.webcam(webcamElement);
+            }
+            setInterval(async () => {
+                const img = tf.browser.fromPixels(webcamElement);
+                const input = img.resizeNearestNeighbor([224, 224]).toFloat().div(tf.scalar(255.0)).expandDims();
+                const predictions = model.predict(input);
+                const predictedClassIndex = predictions.argMax(-1).dataSync()[0];
+                const predictedClassName = classes[predictedClassIndex];
+                document.getElementById('predictions').innerHTML = `<li>${predictedClassName}</li>`;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
