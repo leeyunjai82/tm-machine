@@ -561,13 +561,6 @@
                         }
                     };
                     document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
-
-                    // 이미지 텐서로 변환하여 학습 데이터에 추가
-                    const imgTensor = tf.browser.fromPixels(imgElement).resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH]).toFloat().div(tf.scalar(255));
-                    imgElement.tensor = imgTensor;
-                    const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-                    trainingDataInputs.push(features);
-                    trainingDataOutputs.push(CLASS_NAMES.indexOf(className));
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
