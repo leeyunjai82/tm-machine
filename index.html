@@ -219,7 +219,7 @@
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
-                <label for="model-upload" class="upload-button">모델 불러오기 (ZIP)</label>
+                <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
@@ -307,9 +307,8 @@
                 uploadButton.onchange = (e) => {
                     uploadClassDataset(e, className);
                 };
-                const uploadButtonLabel = document.createElement('label');
+                const uploadButtonLabel = document.createElement('button');
                 uploadButtonLabel.innerText = `데이터셋 업로드`;
-                uploadButtonLabel.classList.add('upload-button');
                 uploadButtonLabel.onclick = () => {
                     uploadButton.click();
                 };
