@@ -4,12 +4,189 @@
     <script src="static/jszip.min.js"></script>
     <script src="static/tf.min-3.11.0.js"></script>
     <style>
-        /* Existing CSS styles remain unchanged */
+        body {
+            font-family: 'Nanum Gothic', sans-serif;
+            background-color: #f9fafb;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 25%;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .main-content {
+            width: 75%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            position: relative;
+        }
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #class-management {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        #class-name {
+            padding: 12px;
+            font-size: 1.2em;
+            flex-grow: 1;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+        #class-name:focus {
+            border-color: #4CAF50;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 1.1em;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        .class-container {
+            cursor: pointer;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .class-container:hover {
+            background-color: #e0f7fa;
+            transform: scale(1.02);
+        }
+        .class-container.selected {
+            border: 2px solid #4CAF50;
+            background-color: #dcedc8;
+        }
+        .image-collection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+        .thumbnail:hover {
+            transform: scale(1.1);
+        }
+        #camera-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+        #camera { width: 100%; height: 400px; max-width: 600px; margin-bottom: 10px; }
+        #training-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        #training-params {
+            display: flex;
+            justify-content: space-evenly;
+            gap: 10px;
+            margin-top: 15px;
+            width: 100%;
+            max-width: 600px;
+        }
+        #training-params label, #training-params input {
+            margin: 5px;
+        }
+        #training-buttons {
+            display: flex;
+            justify-content: space-evenly;
+            flex-wrap: wrap;
+            gap: 15px;
+            width: 100%;
+            max-width: 800px;
+        }
+        #progress-section {
+            margin-bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+        #preview-status {
+            font-weight: bold;
+            color: #4CAF50;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .sidebar {
+                width: 100%;
+                height: 40%;
+                padding: 10px;
+                overflow-y: auto;
+            }
+            .main-content {
+                width: 100%;
+                height: 60%;
+                padding: 10px;
+            }
+            #camera {
+                width: 100%;
+                height: 200px;
+            }
+            button {
+                padding: 10px;
+                font-size: 1em;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar for class management -->
+        <!-- 클래스 관리를 위한 사이드바 -->
         <div class="sidebar">
             <h2>클래스 관리</h2>
             <div id="class-management">
@@ -17,19 +194,19 @@
                 <button onclick="addClass()">클래스 추가</button>
             </div>
             <div id="class-list">
-                <!-- Dynamically added classes and image collections will appear here -->
+                <!-- 동적으로 추가된 클래스와 이미지 컬렉션이 여기에 표시됩니다 -->
             </div>
         </div>
 
-        <!-- Main content for camera and model operations -->
+        <!-- 카메라와 모델 조작을 위한 메인 콘텐츠 -->
         <div class="main-content">
-            <!-- Camera Feed and Capture -->
+            <!-- 카메라 피드 및 캡처 -->
             <div id="camera-section">
                 <video id="camera" autoplay playsinline></video>
                 <button id="capture-button" onmousedown="startCapturingImages()" onmouseup="stopCapturingImages()" onmouseleave="stopCapturingImages()">이미지 캡처</button>
             </div>
 
-            <!-- Training Parameters -->
+            <!-- 학습 매개변수 설정 -->
             <div id="training-params">
                 <label for="epochs">에포크 수: </label>
                 <input type="number" id="epochs" value="15" min="1" max="100">
@@ -37,7 +214,7 @@
                 <input type="number" id="batch-size" value="32" min="1" max="256">
             </div>
 
-            <!-- Train, Export, and Import Model Buttons -->
+            <!-- 모델 학습, 내보내기, 불러오기 버튼 -->
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
                 <button onclick="togglePredictImage()">미리보기 토글</button>
@@ -46,13 +223,13 @@
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
             </div>
 
-            <!-- Training Progress -->
+            <!-- 학습 진행 상황 -->
             <div id="progress-section">
                 <p id="training-progress">학습이 시작되지 않았습니다</p>
                 <progress id="progress-bar" value="0" max="100"></progress>
             </div>
 
-            <!-- Prediction Result -->
+            <!-- 예측 결과 -->
             <div id="prediction-section">
                 <h3>예측 결과:</h3>
                 <p id="prediction-result">아직 예측이 없습니다</p>
@@ -77,20 +254,20 @@
         let previewing = false;
         let previewInterval = null;
 
-        // Start webcam
+        // 웹캠 시작
         async function startCamera() {
             webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
             document.getElementById('camera').srcObject = webcamStream;
         }
 
-        // Load MobileNet Feature Model
+        // MobileNet 피처 모델 로드
         async function loadMobileNetFeatureModel() {
             const URL = 'static/model.json';
             let tmp_model = await tf.loadLayersModel(URL);
             const layer = tmp_model.getLayer('global_average_pooling2d_1');
             mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
 
-            // Warm up the model by passing zeros through it once.
+            // 모델을 한번 워밍업합니다.
             tf.tidy(function () {
                 mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
             });
@@ -100,12 +277,12 @@
             document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
         });
 
-        // Add a new class
+        // 새로운 클래스 추가
         function addClass() {
             const className = document.getElementById('class-name').value;
             if (className && !CLASS_NAMES.includes(className)) {
                 CLASS_NAMES.push(className);
-                // Create new class container
+                // 새로운 클래스 컨테이너 생성
                 const classContainer = document.createElement('div');
                 classContainer.className = 'class-container';
                 classContainer.id = `class-${className}`;
@@ -113,20 +290,43 @@
                 classContainer.onclick = () => {
                     selectClass(className);
                 };
-                // Add to class list
+                // 각 클래스에 다운로드 버튼 추가
+                const downloadButton = document.createElement('button');
+                downloadButton.innerText = `${className} 데이터셋 다운로드`;
+                downloadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    downloadClassDataset(className);
+                };
+                classContainer.appendChild(downloadButton);
+                // 각 클래스에 업로드 버튼 추가
+                const uploadButton = document.createElement('input');
+                uploadButton.type = 'file';
+                uploadButton.accept = '.zip';
+                uploadButton.style.display = 'none';
+                uploadButton.onchange = (e) => {
+                    uploadClassDataset(e, className);
+                };
+                const uploadButtonLabel = document.createElement('label');
+                uploadButtonLabel.innerText = `${className} 데이터셋 업로드`;
+                uploadButtonLabel.classList.add('upload-button');
+                uploadButtonLabel.onclick = () => {
+                    uploadButton.click();
+                };
+                classContainer.appendChild(uploadButton);
+                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
         }
 
-        // Select a class
+        // 클래스 선택
         function selectClass(className) {
-            // Clear previous selection
+            // 이전 선택을 해제합니다.
             document.querySelectorAll('.class-container').forEach(container => {
                 container.classList.remove('selected');
             });
 
-            // Update gatherDataState and highlight selected class
+            // gatherDataState를 업데이트하고 선택한 클래스를 강조합니다.
             gatherDataState = CLASS_NAMES.indexOf(className);
             const selectedClassContainer = document.getElementById(`class-${className}`);
             if (selectedClassContainer) {
@@ -134,14 +334,14 @@
             }
         }
 
-        // Capture images when button is held down
+        // 버튼을 누르고 있는 동안 이미지 캡처
         function startCapturingImages() {
             capturing = true;
             captureInterval = setInterval(() => {
                 if (capturing) {
                     captureImage();
                 }
-            }, 200); // Capture image every 200ms
+            }, 200); // 200ms마다 이미지 캡처
         }
 
         function stopCapturingImages() {
@@ -149,7 +349,7 @@
             clearInterval(captureInterval);
         }
 
-        // Capture image from webcam
+        // 웹캠에서 이미지 캡처
         function captureImage() {
             if (gatherDataState === -1) {
                 alert('이미지를 추가할 클래스를 선택하세요.');
@@ -162,7 +362,7 @@
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
 
-            // Add image to the selected class
+            // 선택한 클래스에 이미지 추가
             const className = CLASS_NAMES[gatherDataState];
             const imageElement = document.createElement('img');
             imageElement.src = canvas.toDataURL('image/png');
@@ -181,7 +381,61 @@
             trainingDataOutputs.push(gatherDataState);
         }
 
-        // Train model using MobileNet for transfer learning
+        // ZIP 파일에서 데이터셋 업로드
+        async function uploadClassDataset(event, className) {
+            const file = event.target.files[0];
+            if (file) {
+                const zip = await JSZip.loadAsync(file);
+                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
+                for (const imageName of imageFiles) {
+                    const imageData = await zip.file(imageName).async('base64');
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `data:image/png;base64,${imageData}`;
+                    imgElement.className = 'thumbnail';
+                    imgElement.onclick = function() {
+                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                            imgElement.remove();
+                        }
+                    };
+                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+
+                    // 이미지 텐서를 학습 데이터에 추가
+                    const imgTensor = tf.tidy(() => {
+                        return tf.browser.fromPixels(imgElement)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255));
+                    });
+
+                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
+                }
+                alert(`${className} 데이터셋이 업로드되었습니다.`);
+            }
+        }
+
+        // 데이터셋을 ZIP 파일로 다운로드
+        function downloadClassDataset(className) {
+            const zip = new JSZip();
+            const classFolder = zip.folder(className);
+            const imageElements = document.querySelectorAll(`#class-${className} .image-collection img`);
+            imageElements.forEach((imgElement, index) => {
+                const dataURL = imgElement.src;
+                const binary = atob(dataURL.split(',')[1]);
+                const array = [];
+                for (let i = 0; i < binary.length; i++) {
+                    array.push(binary.charCodeAt(i));
+                }
+                classFolder.file(`image_${index}.png`, new Uint8Array(array), { binary: true });
+            });
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = `${className}_dataset.zip`;
+                a.click();
+            });
+        }
+
+        // MobileNet을 사용한 전이 학습 모델 학습
         async function trainAndPredict() {
             if (trainingDataInputs.length === 0) {
                 alert('학습할 데이터가 없습니다. 이미지를 추가해주세요.');
@@ -225,7 +479,7 @@
             document.getElementById('training-progress').innerText = 'Data for epoch ' + epoch + ', ' + JSON.stringify(logs);
         }
 
-        // Toggle prediction preview
+        // 예측 미리보기 토글
         function togglePredictImage() {
             const previewStatus = document.getElementById('preview-status');
             if (!previewStatus) return;
@@ -235,14 +489,14 @@
                 previewStatus.style.visibility = 'hidden';
                 document.getElementById('prediction-result').innerText = '아직 예측이 없습니다';
             } else {
-                previewInterval = setInterval(() => predictImage(), 1000); // Predict every second
+                previewInterval = setInterval(() => predictImage(), 1000); // 1초마다 예측
                 previewing = true;
                 previewStatus.innerText = '(미리보기 실행 중)';
                 previewStatus.style.visibility = 'visible';
             }
         }
 
-        // Predict using trained model
+        // 학습된 모델을 사용하여 예측
         async function predictImage() {
             if (!model) {
                 alert('먼저 모델을 학습하세요');
@@ -270,7 +524,7 @@
             prediction.dispose();
         }
 
-        // Export trained model to ZIP
+        // 학습된 모델을 ZIP 파일로 내보내기
         async function exportModelAsZip() {
             if (!model) {
                 alert('먼저 모델을 학습하세요');
@@ -291,7 +545,7 @@
             });
         }
 
-        // Import model from ZIP
+        // ZIP 파일에서 모델 불러오기
         async function importModel(event) {
             const file = event.target.files[0];
             if (file) {
@@ -317,7 +571,7 @@
             }
         }
 
-        // Start the camera when the page loads
+        // 페이지 로드 시 카메라 시작
         window.onload = () => {
             startCamera();
         }
