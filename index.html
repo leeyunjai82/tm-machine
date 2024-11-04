@@ -293,7 +293,7 @@
                 };
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `다운로드`;
+                downloadButton.innerText = `데이터셋 다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
@@ -301,7 +301,7 @@
                 classContainer.appendChild(downloadButton);
                 // Add upload button for each class
                 const uploadButton = document.createElement('button');
-                uploadButton.innerText = `업로드`;
+                uploadButton.innerText = `데이터셋 업로드`;
                 uploadButton.onclick = () => {
                     document.getElementById(`upload-${className}`).click();
                 };
@@ -530,7 +530,8 @@
                 }
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
+                const weightSpecs = modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [];
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs, weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
