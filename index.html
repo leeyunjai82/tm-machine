@@ -339,6 +339,11 @@
                         const classIndex = CLASS_NAMES.indexOf(className);
                         if (classIndex > -1) {
                             CLASS_NAMES.splice(classIndex, 1);
+                            // Remove related data
+                            trainingDataInputs = trainingDataInputs.filter((_, i) => trainingDataOutputs[i] !== classIndex);
+                            trainingDataOutputs = trainingDataOutputs.filter(output => output !== classIndex);
+                            // Update indices of remaining classes in trainingDataOutputs
+                            trainingDataOutputs = trainingDataOutputs.map(output => output > classIndex ? output - 1 : output);                            
                         }
                     }
                 };
