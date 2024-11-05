@@ -517,31 +517,48 @@
             });
         }
 
-        // Import model from ZIP
         async function importModel(event) {
             const file = event.target.files[0];
             if (file) {
-                const zip = await JSZip.loadAsync(file);
-                const modelJson = await zip.file('model.json').async('string');
-                const weightDataFile = zip.file('weights.bin');
-                if (!weightDataFile) {
-                    alert('weights.bin 파일이 누락되었습니다.');
-                    return;
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const modelJson = await zip.file('model.json').async('string');
+                    const modelTopology = JSON.parse(modelJson);
+        
+                    // 모델 JSON 파일에서 weightsManifest 체크
+                    if (!modelTopology.weightsManifest || modelTopology.weightsManifest.length === 0) {
+                        alert('weightsManifest 정보가 모델 JSON 파일에 없습니다.');
+                        return;
+                    }
+        
+                    const weightDataFile = zip.file('weights.bin');
+                    if (!weightDataFile) {
+                        alert('weights.bin 파일이 누락되었습니다.');
+                        return;
+                    }
+        
+                    const weightData = await weightDataFile.async('arraybuffer');
+                    const handler = tf.io.fromMemory({
+                        modelTopology,
+                        weightSpecs: modelTopology.weightsManifest[0].weights,
+                        weightData,
+                    });
+                    model = await tf.loadLayersModel(handler);
+        
+                    const labelsFile = zip.file('labels.txt');
+                    if (labelsFile) {
+                        const labelsText = await labelsFile.async('string');
+                        CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
+                    }
+                    alert('모델이 성공적으로 불러와졌습니다.');
+                    document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
+                } catch (error) {
+                    console.error('모델 불러오기 중 에러 발생:', error);
+                    alert('모델 불러오기 중 문제가 발생했습니다. 콘솔에서 에러 로그를 확인하세요.');
                 }
-                const weightData = await weightDataFile.async('arraybuffer');
-                const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
-                model = await tf.loadLayersModel(handler);
-
-                const labelsFile = zip.file('labels.txt');
-                if (labelsFile) {
-                    const labelsText = await labelsFile.async('string');
-                    CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
-                }
-                alert('모델이 성공적으로 불러와졌습니다.');
-                document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
         }
+
 
         // Download dataset as ZIP
         function downloadClassDataset(className) {
