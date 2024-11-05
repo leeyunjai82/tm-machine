@@ -1,191 +1,188 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이미지 분류 학습 도구</title>
-    <script src="static/jszip.min.js"></script>
-    <script src="static/tf.min-3.11.0.js"></script>
-    <style>
-        body {
-            font-family: 'Nanum Gothic', sans-serif;
-            background-color: #f9fafb;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: stretch;
-            min-height: 100vh;
-            overflow: hidden;
-        }
+<style>
+    body {
+        font-family: 'Nanum Gothic', sans-serif;
+        background-color: #f9fafb;
+        color: #333;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        min-height: 100vh;
+        overflow: hidden;
+    }
+    .container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+    }
+    .sidebar {
+        width: 25%;
+        padding: 20px;
+        background-color: #ffffff;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        overflow-y: auto;
+    }
+    .main-content {
+        width: 75%;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-around;
+        position: relative;
+    }
+    .sidebar h2 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    #class-management {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    #class-name {
+        padding: 12px;
+        font-size: 1.2em;
+        flex-grow: 1;
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        transition: border-color 0.3s;
+    }
+    #class-name:focus {
+        border-color: #4CAF50;
+    }
+    button {
+        padding: 12px 20px;
+        font-size: 1.1em;
+        margin: 8px;
+        border: none;
+        border-radius: 8px;
+        background-color: #4CAF50;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+    }
+    button:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
+    }
+    .class-container {
+        cursor: pointer;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
+        background-color: #f0f0f0;
+        transition: background-color 0.3s, transform 0.3s;
+    }
+    .class-container:hover {
+        background-color: #e0f7fa;
+        transform: scale(1.02);
+    }
+    .class-container.selected {
+        border: 2px solid #4CAF50;
+        background-color: #dcedc8;
+    }
+    .image-collection {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 10px;
+    }
+    .thumbnail {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s;
+    }
+    .thumbnail:hover {
+        transform: scale(1.1);
+    }
+    #camera-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 20px;
+        width: 100%;
+        max-width: 600px;
+    }
+    #camera { width: 100%; height: 400px; max-width: 600px; margin-bottom: 10px; }
+    #training-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+    #training-params {
+        display: flex;
+        justify-content: space-evenly;
+        gap: 10px;
+        margin-top: 15px;
+        width: 100%;
+        max-width: 600px;
+    }
+    #training-params label, #training-params input {
+        margin: 5px;
+    }
+    #training-buttons {
+        display: flex;
+        justify-content: space-evenly;
+        flex-wrap: wrap;
+        gap: 15px;
+        width: 100%;
+        max-width: 800px;
+    }
+    #progress-section {
+        margin-bottom: 20px;
+        width: 100%;
+        text-align: center;
+    }
+    #preview-status {
+        font-weight: bold;
+        color: #4CAF50;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    @media (max-width: 600px) {
         .container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
+            flex-direction: column;
+            align-items: stretch;
         }
         .sidebar {
-            width: 25%;
-            padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            height: 40%;
+            padding: 10px;
             overflow-y: auto;
         }
         .main-content {
-            width: 75%;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-around;
-            position: relative;
+            width: 100%;
+            height: 60%;
+            padding: 10px;
         }
-        .sidebar h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        #class-management {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        #class-name {
-            padding: 12px;
-            font-size: 1.2em;
-            flex-grow: 1;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            transition: border-color 0.3s;
-        }
-        #class-name:focus {
-            border-color: #4CAF50;
+        #camera {
+            width: 100%;
+            height: 200px;
         }
         button {
-            padding: 12px 20px;
-            font-size: 1.1em;
-            margin: 8px;
-            border: none;
-            border-radius: 8px;
-            background-color: #4CAF50;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        button:hover {
-            background-color: #45a049;
-            transform: scale(1.05);
-        }
-        .class-container {
-            cursor: pointer;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
             padding: 10px;
-            background-color: #f0f0f0;
-            transition: background-color 0.3s, transform 0.3s;
+            font-size: 1em;
         }
-        .class-container:hover {
-            background-color: #e0f7fa;
-            transform: scale(1.02);
-        }
-        .class-container.selected {
-            border: 2px solid #4CAF50;
-            background-color: #dcedc8;
-        }
-        .image-collection {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 10px;
-        }
-        .thumbnail {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-        .thumbnail:hover {
-            transform: scale(1.1);
-        }
-        #camera-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 600px;
-        }
-        #camera { width: 100%; height: 400px; max-width: 600px; margin-bottom: 10px; }
-        #training-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            width: 100%;
-        }
-        #training-params {
-            display: flex;
-            justify-content: space-evenly;
-            gap: 10px;
-            margin-top: 15px;
-            width: 100%;
-            max-width: 600px;
-        }
-        #training-params label, #training-params input {
-            margin: 5px;
-        }
-        #training-buttons {
-            display: flex;
-            justify-content: space-evenly;
-            flex-wrap: wrap;
-            gap: 15px;
-            width: 100%;
-            max-width: 800px;
-        }
-        #progress-section {
-            margin-bottom: 20px;
-            width: 100%;
-            text-align: center;
-        }
-        #preview-status {
-            font-weight: bold;
-            color: #4CAF50;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        @media (max-width: 600px) {
-            .container {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .sidebar {
-                width: 100%;
-                height: 40%;
-                padding: 10px;
-                overflow-y: auto;
-            }
-            .main-content {
-                width: 100%;
-                height: 60%;
-                padding: 10px;
-            }
-            #camera {
-                width: 100%;
-                height: 200px;
-            }
-            button {
-                padding: 10px;
-                font-size: 1em;
-            }
-        }
-    </style>
+    }
+</style>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <script src="static/jszip.min.js"></script>
+    <script src="static/tf.min-3.11.0.js"></script>
 </head>
 <body>
     <div class="container">
@@ -220,7 +217,7 @@
             <!-- Train, Export, and Import Model Buttons -->
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
-                <button onclick="togglePredictImage()">미리보기 (추론/카메라)</button>
+                <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
                 <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
@@ -242,50 +239,95 @@
     </div>
 
     <script>
-        let classes = [];
-        let imagesByClass = {};
+        const MOBILE_NET_INPUT_WIDTH = 224;
+        const MOBILE_NET_INPUT_HEIGHT = 224;
+        const CLASS_NAMES = [];
+        let mobilenet;
         let model;
-        let webcamElement;
+        let gatherDataState = -1;
+        let trainingDataInputs = [];
+        let trainingDataOutputs = [];
+        let examplesCount = [];
+        let predict = false;
+        let webcamStream;
         let capturing = false;
         let captureInterval;
         let previewing = false;
-        let previewInterval;
+        let previewInterval = null;
 
-        async function addClass() {
-            let className = document.getElementById('class-name').value;
-            if (className) {
-                classes.push(className);
-                imagesByClass[className] = [];
-                displayClass(className);
-            }
+        // Start webcam
+        async function startCamera() {
+            webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            document.getElementById('camera').srcObject = webcamStream;
         }
 
-        function displayClass(className) {
-            let classDiv = document.createElement('div');
-            classDiv.className = 'class-container';
-            classDiv.innerHTML = `<strong>${className}</strong> <input type="file" accept="image/*" onchange="handleImageUpload('${className}', this)" multiple />`;
-            let imageContainer = document.createElement('div');
-            imageContainer.className = 'image-collection';
-            imageContainer.id = `image-container-${className}`;
-            classDiv.appendChild(imageContainer);
-            document.getElementById('class-list').appendChild(classDiv);
+        // Load MobileNet Feature Model
+        async function loadMobileNetFeatureModel() {
+            const URL = 'static/model.json';
+            let tmp_model = await tf.loadLayersModel(URL);
+            const layer = tmp_model.getLayer('global_average_pooling2d_1');
+            mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
+
+            // Warm up the model by passing zeros through it once.
+            tf.tidy(function () {
+                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
+            });
         }
 
-        function handleImageUpload(className, input) {
-            let files = input.files;
-            for (let i = 0; i < files.length; i++) {
-                let reader = new FileReader();
-                reader.onload = function(event) {
-                    let img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.className = 'thumbnail';
-                    document.getElementById(`image-container-${className}`).appendChild(img);
-                    imagesByClass[className].push(event.target.result);
+        loadMobileNetFeatureModel().then(() => {
+            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
+        });
+
+        // Add a new class
+        function addClass() {
+            const className = document.getElementById('class-name').value;
+            if (className && !CLASS_NAMES.includes(className)) {
+                CLASS_NAMES.push(className);
+                // Create new class container
+                const classContainer = document.createElement('div');
+                classContainer.className = 'class-container';
+                classContainer.id = `class-${className}`;
+                classContainer.innerHTML = `<h3 onclick="selectClass('${className}')">${className}</h3><div class="image-collection"></div>`;
+                classContainer.onclick = () => {
+                    selectClass(className);
                 };
-                reader.readAsDataURL(files[i]);
+                // Add download button for each class
+                const downloadButton = document.createElement('button');
+                downloadButton.innerText = `데이터셋 다운로드`;
+                downloadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    downloadClassDataset(className);
+                };
+                classContainer.appendChild(downloadButton);
+                // Add upload button for each class
+                const uploadButton = document.createElement('button');
+                uploadButton.innerText = `데이터셋 업로드`;
+                uploadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    document.getElementById('model-upload').click();
+                };
+                classContainer.appendChild(uploadButton);
+                document.getElementById('class-list').appendChild(classContainer);
+                document.getElementById('class-name').value = '';
             }
         }
 
+        // Select a class
+        function selectClass(className) {
+            // Clear previous selection
+            document.querySelectorAll('.class-container').forEach(container => {
+                container.classList.remove('selected');
+            });
+
+            // Update gatherDataState and highlight selected class
+            gatherDataState = CLASS_NAMES.indexOf(className);
+            const selectedClassContainer = document.getElementById(`class-${className}`);
+            if (selectedClassContainer) {
+                selectedClassContainer.classList.add('selected');
+            }
+        }
+
+        // Capture images when button is held down
         function startCapturingImages() {
             capturing = true;
             captureInterval = setInterval(() => {
@@ -300,125 +342,153 @@
             clearInterval(captureInterval);
         }
 
+        // Capture image from webcam
         function captureImage() {
-            if (!webcamElement) {
-                webcamElement = document.getElementById('camera');
-            }
-            if (!webcamElement) {
-                alert('웹캠을 시작하세요.');
-                return;
-            }
-            const imgTensor = tf.tidy(() => {
-                return tf.browser.fromPixels(webcamElement)
-                    .resizeNearestNeighbor([224, 224])
-                    .toFloat()
-                    .div(tf.scalar(255.0))
-                    .expandDims();
-            });
-            addImageToClass(imgTensor, classes.indexOf(gatherDataState));
-        }
-
-        function addImageToClass(imgTensor, classIndex) {
-            if (classIndex === -1) {
+            if (gatherDataState === -1) {
                 alert('이미지를 추가할 클래스를 선택하세요.');
                 return;
             }
-            const features = tf.tidy(() => imgTensor);
-            if (!imagesByClass[classes[classIndex]]) {
-                imagesByClass[classes[classIndex]] = [];
-            }
-            imagesByClass[classes[classIndex]].push(features);
-        }
 
-        async function trainAndPredict() {
-            let trainingDataInputs = [];
-            let trainingDataOutputs = [];
-            classes.forEach((className, classIndex) => {
-                imagesByClass[className].forEach(imageTensor => {
-                    trainingDataInputs.push(imageTensor);
-                    trainingDataOutputs.push(classIndex);
-                });
+            const video = document.getElementById('camera');
+            const imgTensor = tf.tidy(() => {
+                return tf.browser.fromPixels(video)
+                    .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                    .toFloat()
+                    .div(tf.scalar(255));
             });
 
+            addImageToClass(imgTensor, gatherDataState);
+        }
+
+        // Upload dataset from ZIP (Unified version)
+        async function uploadClassDataset(event, className) {
+            const file = event.target.files[0];
+            if (file) {
+                const zip = await JSZip.loadAsync(file);
+                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
+                for (const imageName of imageFiles) {
+                    const imageData = await zip.file(imageName).async('base64');
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `data:image/png;base64,${imageData}`;
+                    imgElement.className = 'thumbnail';
+                    imgElement.onclick = function() {
+                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
+                            imgElement.remove();
+                        }
+                    };
+                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+
+                    // Add the image tensor to the training data
+                    const imgTensor = tf.tidy(() => {
+                        return tf.browser.fromPixels(imgElement)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255));
+                    });
+
+                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
+                }
+                alert(`${className} 데이터셋이 업로드되었습니다.`);
+            }
+        }
+
+        // Helper function to add image tensor to class and feature extraction
+        function addImageToClass(imgTensor, classIndex) {
+            const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
+            trainingDataInputs.push(features);
+            trainingDataOutputs.push(classIndex);
+        }
+
+        // Train model using MobileNet for transfer learning
+        async function trainAndPredict() {
             if (trainingDataInputs.length === 0) {
                 alert('학습할 데이터가 없습니다. 이미지를 추가해주세요.');
                 return;
             }
 
+            predict = false;
             document.getElementById('training-progress').innerText = 'Training ...';
             tf.util.shuffleCombo(trainingDataInputs, trainingDataOutputs);
 
             let outputsAsTensor = tf.tensor1d(trainingDataOutputs, 'int32');
-            let oneHotOutputs = tf.oneHot(outputsAsTensor, classes.length);
+            let oneHotOutputs = tf.oneHot(outputsAsTensor, CLASS_NAMES.length);
             let inputsAsTensor = tf.stack(trainingDataInputs);
 
             model = tf.sequential();
-            model.add(tf.layers.flatten({inputShape: [224, 224, 3]}));
-            model.add(tf.layers.dense({units: 128, activation: 'relu'}));
-            model.add(tf.layers.dense({units: classes.length, activation: 'softmax'}));
+            model.add(tf.layers.dense({inputShape: [1280], units: 128, activation: 'relu'}));
+            model.add(tf.layers.dense({units: CLASS_NAMES.length, activation: 'softmax'}));
             model.compile({
                 optimizer: 'adam',
                 loss: 'categoricalCrossentropy',
                 metrics: ['accuracy']
             });
 
-            await model.fit(inputsAsTensor, oneHotOutputs, {
+            model.fit(inputsAsTensor, oneHotOutputs, {
                 shuffle: true,
                 batchSize: parseInt(document.getElementById('batch-size').value),
                 epochs: parseInt(document.getElementById('epochs').value),
-                callbacks: {
-                    onEpochEnd: (epoch, logs) => {
-                        document.getElementById('training-progress').innerText = `에포크 ${epoch + 1}: 손실=${logs.loss.toFixed(5)}, 정확도=${(logs.acc * 100).toFixed(2)}%`;
-                    }
-                }
+                callbacks: { onEpochEnd: logProgress }
+            }).then(() => {
+                outputsAsTensor.dispose();
+                oneHotOutputs.dispose();
+                inputsAsTensor.dispose();
+                document.getElementById('training-progress').innerText = 'Trained Ok';
+                predict = true;
+                togglePredictImage();
             });
-
-            outputsAsTensor.dispose();
-            oneHotOutputs.dispose();
-            inputsAsTensor.dispose();
-
-            document.getElementById('training-progress').innerText = '모델 학습 완료';
         }
 
+        function logProgress(epoch, logs) {
+            console.log('Data for epoch ' + epoch, logs);
+            document.getElementById('training-progress').innerText = 'Data for epoch ' + epoch + ', ' + JSON.stringify(logs);
+        }
+
+        // Toggle prediction preview
         function togglePredictImage() {
+            const previewStatus = document.getElementById('preview-status');
+            if (!previewStatus) return;
             if (previewing) {
                 clearInterval(previewInterval);
                 previewing = false;
-                document.getElementById('preview-status').style.visibility = 'hidden';
+                previewStatus.style.visibility = 'hidden';
                 document.getElementById('prediction-result').innerText = '아직 예측이 없습니다';
             } else {
+                previewInterval = setInterval(() => predictImage(), 1000); // Predict every second
                 previewing = true;
-                document.getElementById('preview-status').style.visibility = 'visible';
-                previewInterval = setInterval(() => {
-                    predictImage();
-                }, 1000);
+                previewStatus.innerText = '(미리보기 실행 중)';
+                previewStatus.style.visibility = 'visible';
             }
         }
 
+        // Predict using trained model
         async function predictImage() {
             if (!model) {
                 alert('먼저 모델을 학습하세요');
                 return;
             }
-            if (!webcamElement) {
-                webcamElement = document.getElementById('camera');
-            }
 
-            const imgTensor = tf.tidy(() => {
-                return tf.browser.fromPixels(webcamElement)
-                    .resizeNearestNeighbor([224, 224])
-                    .toFloat()
-                    .div(tf.scalar(255.0))
-                    .expandDims();
-            });
+            const video = document.getElementById('camera');
+            const img = tf.tidy(() => tf.browser.fromPixels(video)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255.0))
+                            .expandDims());
 
-            const predictions = model.predict(imgTensor);
-            const predictedClassIndex = predictions.argMax(-1).dataSync()[0];
-            const predictedClassName = classes[predictedClassIndex];
-            document.getElementById('prediction-result').innerText = `예측된 클래스: ${predictedClassName}`;
-            imgTensor.dispose();
+            const features = tf.tidy(() => mobilenet.predict(img).flatten());
+            const prediction = tf.tidy(() => model.predict(features.expandDims()));
+            const predictionData = await prediction.data();
+            const classIndex = prediction.argMax(-1).dataSync()[0];
+            const confidence = predictionData[classIndex];
+
+            const className = CLASS_NAMES[classIndex];
+            document.getElementById('prediction-result').innerText = `예측된 클래스: ${className} (신뢰도: ${(confidence * 100).toFixed(2)}%)`;
+
+            img.dispose();
+            features.dispose();
+            prediction.dispose();
         }
 
+        // Export trained model to ZIP
         async function exportModelAsZip() {
             if (!model) {
                 alert('먼저 모델을 학습하세요');
@@ -427,8 +497,10 @@
             const zip = new JSZip();
             const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
             zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
-            zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
-            zip.file('labels.txt', classes.join('\n'));
+            if (modelArtifacts.weightData) {
+                zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
+            }
+            zip.file('labels.txt', CLASS_NAMES.join('\n'));
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(content);
@@ -437,32 +509,57 @@
             });
         }
 
+        // Import model from ZIP
         async function importModel(event) {
             const file = event.target.files[0];
             if (file) {
                 const zip = await JSZip.loadAsync(file);
                 const modelJson = await zip.file('model.json').async('string');
-                const weightData = await zip.file('weights.bin').async('arraybuffer');
-                const handler = tf.io.fromMemory({ modelTopology: JSON.parse(modelJson), weightData: weightData, weightSpecs: [] });
+                const weightDataFile = zip.file('weights.bin');
+                if (!weightDataFile) {
+                    alert('weights.bin 파일이 누락되었습니다.');
+                    return;
+                }
+                const weightData = await weightDataFile.async('arraybuffer');
+                const modelTopology = JSON.parse(modelJson);
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [], weightData });
                 model = await tf.loadLayersModel(handler);
 
                 const labelsFile = zip.file('labels.txt');
                 if (labelsFile) {
                     const labelsText = await labelsFile.async('string');
-                    classes = labelsText.split('\n');
+                    CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
                 }
                 alert('모델이 성공적으로 불러와졌습니다.');
                 document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
         }
 
-        window.onload = () => {
-            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-                webcamElement = document.getElementById('camera');
-                webcamElement.srcObject = stream;
-            }).catch(err => {
-                alert('웹캠을 사용할 수 없습니다: ' + err);
+        // Download dataset as ZIP
+        function downloadClassDataset(className) {
+            const zip = new JSZip();
+            const classFolder = zip.folder(className);
+            const imageElements = document.querySelectorAll(`#class-${className} .image-collection img`);
+            imageElements.forEach((imgElement, index) => {
+                const dataURL = imgElement.src;
+                const binary = atob(dataURL.split(',')[1]);
+                const array = [];
+                for (let i = 0; i < binary.length; i++) {
+                    array.push(binary.charCodeAt(i));
+                }
+                classFolder.file(`image_${index}.png`, new Uint8Array(array), { binary: true });
             });
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(content);
+                a.download = `${className}_dataset.zip`;
+                a.click();
+            });
+        }
+
+        // Start the camera when the page loads
+        window.onload = () => {
+            startCamera();
         }
     </script>
 </body>
