@@ -217,7 +217,7 @@
             <!-- Train, Export, and Import Model Buttons -->
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
-                <button onclick="togglePredictImage()">미리보기 토글</button>
+                <button onclick="togglePredictImage()">미리보기(추론)</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
                 <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
@@ -267,12 +267,10 @@
             let tmp_model = await tf.loadLayersModel(URL);
             const layer = tmp_model.getLayer('global_average_pooling2d_1');
             mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
-            mobilenet.summary();
 
             // Warm up the model by passing zeros through it once.
             tf.tidy(function () {
-                let answer = mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
-                console.log(answer.shape);
+                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
             });
         }
 
@@ -293,63 +291,31 @@
                 classContainer.onclick = () => {
                     selectClass(className);
                 };
-                
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `데이터셋 다운로드`;
+                downloadButton.innerText = `다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
                 };
                 classContainer.appendChild(downloadButton);
-                
                 // Add upload button for each class
-                const uploadButton = document.createElement('input');
-                uploadButton.type = 'file';
-                uploadButton.accept = '.zip';
-                uploadButton.style.display = 'none';
-                uploadButton.onchange = (e) => {
-                    uploadClassDataset(e, className);
-                };
-                const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `데이터셋 업로드`;
-                uploadButtonLabel.classList.add('upload-button');
-                uploadButtonLabel.onclick = () => {
-                    uploadButton.click();
+                const uploadButton = document.createElement('button');
+                uploadButton.innerText = `업로드`;
+                uploadButton.onclick = (e) => {
+                    e.stopPropagation();
+                    const fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = '.zip';
+                    fileInput.style.display = 'none';
+                    fileInput.onchange = (e) => uploadClassDataset(e, className);
+                    document.body.appendChild(fileInput);
+                    fileInput.click();
+                    document.body.removeChild(fileInput);
                 };
                 classContainer.appendChild(uploadButton);
-                classContainer.appendChild(uploadButtonLabel);
-                
-                // Add delete button for each class
-                const deleteButton = document.createElement('button');
-                deleteButton.innerText = `데이터 삭제`;
-                deleteButton.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteClassData(className);
-                };
-                classContainer.appendChild(deleteButton);
-                
-                // Append the class container to the class list
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
-            }
-        }
-        
-        // Function to delete all images of a class
-        function deleteClassData(className) {
-            if (confirm(`${className} 클래스의 모든 데이터를 삭제하시겠습니까?`)) {
-                const classContainer = document.getElementById(`class-${className}`);
-                const imageCollection = classContainer.querySelector('.image-collection');
-        
-                // Clear the image collection for the class
-                imageCollection.innerHTML = '';
-        
-                // Remove training data related to this class
-                const classIndex = CLASS_NAMES.indexOf(className);
-                trainingDataInputs = trainingDataInputs.filter((_, index) => trainingDataOutputs[index] !== classIndex);
-                trainingDataOutputs = trainingDataOutputs.filter(output => output !== classIndex);
-        
-                alert(`${className} 클래스의 데이터가 삭제되었습니다.`);
             }
         }
 
@@ -563,8 +529,9 @@
                 }
                 const weightData = await weightDataFile.async('arraybuffer');
                 const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
+                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [], weightData });
                 model = await tf.loadLayersModel(handler);
+
                 const labelsFile = zip.file('labels.txt');
                 if (labelsFile) {
                     const labelsText = await labelsFile.async('string');
@@ -574,7 +541,6 @@
                 document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
         }
-
 
         // Download dataset as ZIP
         function downloadClassDataset(className) {
