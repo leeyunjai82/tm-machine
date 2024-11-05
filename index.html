@@ -407,29 +407,43 @@
                 const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
                 for (const imageName of imageFiles) {
                     const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = new Image();
+                    const imgElement = document.createElement('img');
                     imgElement.src = `data:image/png;base64,${imageData}`;
                     imgElement.className = 'thumbnail';
-                    imgElement.onload = function() {
-                        // Add the image tensor to the training data after it is fully loaded
-                        const imgTensor = tf.tidy(() => {
-                            return tf.browser.fromPixels(imgElement)
-                                .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
-                                .toFloat()
-                                .div(tf.scalar(255));
-                        });
-                        addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
-                    };
-                    imgElement.onclick = function() {
+        
+                    // Wrap imgElement in a div to hold both image and delete button
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'thumbnail-wrapper';
+                    imgWrapper.style.position = 'relative';
+        
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'delete-button';
+                    deleteButton.innerText = 'x';
+                    deleteButton.onclick = function(e) {
+                        e.stopPropagation();
                         if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            imgElement.remove();
+                            imgWrapper.remove();
                         }
                     };
-                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+        
+                    imgWrapper.appendChild(imgElement);
+                    imgWrapper.appendChild(deleteButton);
+                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgWrapper);
+        
+                    // Add the image tensor to the training data
+                    const imgTensor = tf.tidy(() => {
+                        return tf.browser.fromPixels(imgElement)
+                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                            .toFloat()
+                            .div(tf.scalar(255));
+                    });
+        
+                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
         }
+
 
         // Train model using MobileNet for transfer learning
         async function trainAndPredict() {
