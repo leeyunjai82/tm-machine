@@ -245,9 +245,31 @@ async function predictImage() {
     prediction.dispose();
 }
 
-// Upload dataset from ZIP (placeholder function)
-function uploadClassDataset(event, className) {
-    alert(`데이터셋 업로드 기능은 아직 구현되지 않았습니다. 클래스: ${className}`);
+// Upload dataset from ZIP
+async function uploadClassDataset(event, className) {
+    const file = event.target.files[0];
+    if (file) {
+        const zip = await JSZip.loadAsync(file);
+        const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png') || name.endsWith('.jpg'));
+        for (const imageName of imageFiles) {
+            const imageData = await zip.file(imageName).async('base64');
+            const imgElement = document.createElement('img');
+            imgElement.src = `data:image/png;base64,${imageData}`;
+            imgElement.className = 'thumbnail';
+            imgElement.onload = () => {
+                const imgTensor = tf.tidy(() => {
+                    let img = tf.browser.fromPixels(imgElement)
+                        .resizeBilinear([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                        .toFloat()
+                        .div(tf.scalar(255));
+                    return tf.image.per_image_standardization(img);
+                });
+                addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
+            };
+            document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
+        }
+        alert(`${className} 데이터셋이 업로드되었습니다.`);
+    }
 }
 
 // Start the camera when the page loads
