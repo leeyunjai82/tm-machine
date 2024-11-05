@@ -267,7 +267,7 @@
             let tmp_model = await tf.loadLayersModel(URL);
             const layer = tmp_model.getLayer('global_average_pooling2d_1');
             mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
-            movilenet.summary();
+            mobilenet.summary();
 
             // Warm up the model by passing zeros through it once.
             tf.tidy(function () {
