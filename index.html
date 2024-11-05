@@ -53,7 +53,7 @@
     #class-name:focus {
         border-color: #4CAF50;
     }
-    button {
+    button, label.upload-button {
         padding: 12px 20px;
         font-size: 1.1em;
         margin: 8px;
@@ -64,7 +64,7 @@
         cursor: pointer;
         transition: background-color 0.3s, transform 0.2s;
     }
-    button:hover {
+    button:hover, label.upload-button:hover {
         background-color: #45a049;
         transform: scale(1.05);
     }
@@ -172,7 +172,7 @@
             width: 100%;
             height: 200px;
         }
-        button {
+        button, label.upload-button {
             padding: 10px;
             font-size: 1em;
         }
@@ -217,7 +217,7 @@
             <!-- Train, Export, and Import Model Buttons -->
             <div id="training-buttons">
                 <button onclick="trainAndPredict()">모델 학습 시작</button>
-                <button onclick="togglePredictImage()">미리보기(추론)</button>
+                <button onclick="togglePredictImage()">미리보기 토글</button>
                 <button onclick="exportModelAsZip()">모델 내보내기 (ZIP)</button>
                 <button onclick="document.getElementById('model-upload').click()">모델 불러오기 (ZIP)</button>
                 <input type="file" id="model-upload" onchange="importModel(event)" style="display:none" />
@@ -293,27 +293,28 @@
                 };
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
-                downloadButton.innerText = `다운로드`;
+                downloadButton.innerText = `데이터셋 다운로드`;
                 downloadButton.onclick = (e) => {
                     e.stopPropagation();
                     downloadClassDataset(className);
                 };
                 classContainer.appendChild(downloadButton);
                 // Add upload button for each class
-                const uploadButton = document.createElement('button');
-                uploadButton.innerText = `업로드`;
-                uploadButton.onclick = (e) => {
-                    e.stopPropagation();
-                    const fileInput = document.createElement('input');
-                    fileInput.type = 'file';
-                    fileInput.accept = '.zip';
-                    fileInput.style.display = 'none';
-                    fileInput.onchange = (e) => uploadClassDataset(e, className);
-                    document.body.appendChild(fileInput);
-                    fileInput.click();
-                    document.body.removeChild(fileInput);
+                const uploadButton = document.createElement('input');
+                uploadButton.type = 'file';
+                uploadButton.accept = '.zip';
+                uploadButton.style.display = 'none';
+                uploadButton.onchange = (e) => {
+                    uploadClassDataset(e, className);
+                };
+                const uploadButtonLabel = document.createElement('label');
+                uploadButtonLabel.innerText = `데이터셋 업로드`;
+                uploadButtonLabel.classList.add('upload-button');
+                uploadButtonLabel.onclick = () => {
+                    uploadButton.click();
                 };
                 classContainer.appendChild(uploadButton);
+                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
             }
