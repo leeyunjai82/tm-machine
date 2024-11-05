@@ -257,30 +257,37 @@
 
         // Start webcam
         async function startCamera() {
-            webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            document.getElementById('camera').srcObject = webcamStream;
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('camera').srcObject = webcamStream;
+            } catch (error) {
+                alert('웹캠을 사용할 수 없습니다. 권한을 확인해주세요.');
+            }
         }
 
         // Load MobileNet Feature Model
         async function loadMobileNetFeatureModel() {
-            const URL = 'static/model.json';
-            let tmp_model = await tf.loadLayersModel(URL);
-            const layer = tmp_model.getLayer('global_average_pooling2d_1');
-            mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
+            try {
+                const URL = 'static/model.json';
+                let tmp_model = await tf.loadLayersModel(URL);
+                const layer = tmp_model.getLayer('global_average_pooling2d_1');
+                mobilenet = tf.model({inputs: tmp_model.inputs, outputs: layer.output});
 
-            // Warm up the model by passing zeros through it once.
-            tf.tidy(function () {
-                mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
-            });
+                // Warm up the model by passing zeros through it once.
+                tf.tidy(function () {
+                    mobilenet.predict(tf.zeros([1, MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH, 3]));
+                });
+                document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
+            } catch (error) {
+                alert('MobileNet 모델을 로드하는 중 오류가 발생했습니다. 경로를 확인해주세요.');
+            }
         }
 
-        loadMobileNetFeatureModel().then(() => {
-            document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
-        });
+        loadMobileNetFeatureModel();
 
         // Add a new class
         function addClass() {
-            const className = document.getElementById('class-name').value;
+            const className = document.getElementById('class-name').value.trim();
             if (className && !CLASS_NAMES.includes(className)) {
                 CLASS_NAMES.push(className);
                 // Create new class container
@@ -291,32 +298,11 @@
                 classContainer.onclick = () => {
                     selectClass(className);
                 };
-                // Add download button for each class
-                const downloadButton = document.createElement('button');
-                downloadButton.innerText = `데이터셋 다운로드`;
-                downloadButton.onclick = (e) => {
-                    e.stopPropagation();
-                    downloadClassDataset(className);
-                };
-                classContainer.appendChild(downloadButton);
-                // Add upload button for each class
-                const uploadButton = document.createElement('input');
-                uploadButton.type = 'file';
-                uploadButton.accept = '.zip';
-                uploadButton.style.display = 'none';
-                uploadButton.onchange = (e) => {
-                    uploadClassDataset(e, className);
-                };
-                const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `데이터셋 업로드`;
-                uploadButtonLabel.classList.add('upload-button');
-                uploadButtonLabel.onclick = () => {
-                    uploadButton.click();
-                };
-                classContainer.appendChild(uploadButton);
-                classContainer.appendChild(uploadButtonLabel);
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
+                selectClass(className); // 자동으로 새로 추가된 클래스를 선택
+            } else {
+                alert('유효한 클래스 이름을 입력하거나 중복되지 않은 이름을 사용하세요.');
             }
         }
 
@@ -368,38 +354,6 @@
             addImageToClass(imgTensor, gatherDataState);
         }
 
-        // Upload dataset from ZIP (Unified version)
-        async function uploadClassDataset(event, className) {
-            const file = event.target.files[0];
-            if (file) {
-                const zip = await JSZip.loadAsync(file);
-                const imageFiles = Object.keys(zip.files).filter(name => name.endsWith('.png'));
-                for (const imageName of imageFiles) {
-                    const imageData = await zip.file(imageName).async('base64');
-                    const imgElement = document.createElement('img');
-                    imgElement.src = `data:image/png;base64,${imageData}`;
-                    imgElement.className = 'thumbnail';
-                    imgElement.onclick = function() {
-                        if (confirm('이 이미지를 삭제하시겠습니까?')) {
-                            imgElement.remove();
-                        }
-                    };
-                    document.querySelector(`#class-${className} .image-collection`).appendChild(imgElement);
-
-                    // Add the image tensor to the training data
-                    const imgTensor = tf.tidy(() => {
-                        return tf.browser.fromPixels(imgElement)
-                            .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
-                            .toFloat()
-                            .div(tf.scalar(255));
-                    });
-
-                    addImageToClass(imgTensor, CLASS_NAMES.indexOf(className));
-                }
-                alert(`${className} 데이터셋이 업로드되었습니다.`);
-            }
-        }
-
         // Helper function to add image tensor to class and feature extraction
         function addImageToClass(imgTensor, classIndex) {
             const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
@@ -440,15 +394,17 @@
                 outputsAsTensor.dispose();
                 oneHotOutputs.dispose();
                 inputsAsTensor.dispose();
-                document.getElementById('training-progress').innerText = 'Trained Ok';
+                document.getElementById('training-progress').innerText = '학습이 완료되었습니다.';
                 predict = true;
                 togglePredictImage();
+            }).catch(error => {
+                alert('학습 도중 오류가 발생했습니다: ' + error.message);
             });
         }
 
         function logProgress(epoch, logs) {
             console.log('Data for epoch ' + epoch, logs);
-            document.getElementById('training-progress').innerText = 'Data for epoch ' + epoch + ', ' + JSON.stringify(logs);
+            document.getElementById('training-progress').innerText = '에포크 ' + epoch + ': ' + JSON.stringify(logs);
         }
 
         // Toggle prediction preview
@@ -502,67 +458,53 @@
                 alert('먼저 모델을 학습하세요');
                 return;
             }
-            const zip = new JSZip();
-            const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
-            zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
-            if (modelArtifacts.weightData) {
-                zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
+            try {
+                const zip = new JSZip();
+                const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
+                zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
+                if (modelArtifacts.weightData) {
+                    zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
+                }
+                zip.file('labels.txt', CLASS_NAMES.join('\n'));
+                zip.generateAsync({ type: 'blob' }).then(function(content) {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(content);
+                    a.download = 'trained-model.zip';
+                    a.click();
+                });
+            } catch (error) {
+                alert('모델 내보내기 중 오류가 발생했습니다: ' + error.message);
             }
-            zip.file('labels.txt', CLASS_NAMES.join('\n'));
-            zip.generateAsync({ type: 'blob' }).then(function(content) {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
-                a.download = 'trained-model.zip';
-                a.click();
-            });
         }
 
         // Import model from ZIP
         async function importModel(event) {
             const file = event.target.files[0];
             if (file) {
-                const zip = await JSZip.loadAsync(file);
-                const modelJson = await zip.file('model.json').async('string');
-                const weightDataFile = zip.file('weights.bin');
-                if (!weightDataFile) {
-                    alert('weights.bin 파일이 누락되었습니다.');
-                    return;
-                }
-                const weightData = await weightDataFile.async('arraybuffer');
-                const modelTopology = JSON.parse(modelJson);
-                const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
-                model = await tf.loadLayersModel(handler);
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const modelJson = await zip.file('model.json').async('string');
+                    const weightDataFile = zip.file('weights.bin');
+                    if (!weightDataFile) {
+                        alert('weights.bin 파일이 누락되었습니다.');
+                        return;
+                    }
+                    const weightData = await weightDataFile.async('arraybuffer');
+                    const modelTopology = JSON.parse(modelJson);
+                    const handler = tf.io.fromMemory({ modelTopology, weightSpecs: modelTopology.weightsManifest[0].weights, weightData });
+                    model = await tf.loadLayersModel(handler);
 
-                const labelsFile = zip.file('labels.txt');
-                if (labelsFile) {
-                    const labelsText = await labelsFile.async('string');
-                    CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
+                    const labelsFile = zip.file('labels.txt');
+                    if (labelsFile) {
+                        const labelsText = await labelsFile.async('string');
+                        CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
+                    }
+                    alert('모델이 성공적으로 불러와졌습니다.');
+                    document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
+                } catch (error) {
+                    alert('모델 불러오기 중 오류가 발생했습니다: ' + error.message);
                 }
-                alert('모델이 성공적으로 불러와졌습니다.');
-                document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
             }
-        }
-
-        // Download dataset as ZIP
-        function downloadClassDataset(className) {
-            const zip = new JSZip();
-            const classFolder = zip.folder(className);
-            const imageElements = document.querySelectorAll(`#class-${className} .image-collection img`);
-            imageElements.forEach((imgElement, index) => {
-                const dataURL = imgElement.src;
-                const binary = atob(dataURL.split(',')[1]);
-                const array = [];
-                for (let i = 0; i < binary.length; i++) {
-                    array.push(binary.charCodeAt(i));
-                }
-                classFolder.file(`image_${index}.png`, new Uint8Array(array), { binary: true });
-            });
-            zip.generateAsync({ type: 'blob' }).then(function(content) {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
-                a.download = `${className}_dataset.zip`;
-                a.click();
-            });
         }
 
         // Start the camera when the page loads
