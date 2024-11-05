@@ -560,30 +560,32 @@ async function exportModelAsZip() {
 
     const zip = new JSZip();
 
-    // Use model.save() to save as a Blob
-    const saveResult = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
+    try {
+        // Save model to in-memory file system using the 'tensorflow' handler
+        const modelSaveHandler = tf.io.withSaveHandler(async (artifacts) => artifacts);
+        const modelArtifacts = await model.save(modelSaveHandler);
 
-    // Save model topology (model.json)
-    if (saveResult.modelTopology) {
-        zip.file('model.json', JSON.stringify(saveResult.modelTopology));
+        // Save model topology and weights to zip
+        zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
+        if (modelArtifacts.weightData) {
+            zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
+        }
+        zip.file('labels.txt', CLASS_NAMES.join('\n'));
+
+        // Generate and download the ZIP
+        zip.generateAsync({ type: 'blob' }).then(function (content) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = 'trained-model.zip';
+            a.click();
+        });
+
+    } catch (error) {
+        console.error("모델 내보내기 중 오류 발생:", error);
+        alert("모델을 내보내는 도중 오류가 발생했습니다.");
     }
-
-    // Save weight data (weights.bin)
-    if (saveResult.weightData) {
-        zip.file('weights.bin', new Uint8Array(saveResult.weightData));
-    }
-
-    // Save labels (labels.txt)
-    zip.file('labels.txt', CLASS_NAMES.join('\n'));
-
-    // Generate the zip file and trigger download
-    zip.generateAsync({ type: 'blob' }).then((content) => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(content);
-        a.download = 'trained-model.zip';
-        a.click();
-    });
 }
+
 
 // Import model from ZIP
 async function importModel(event) {
@@ -591,49 +593,53 @@ async function importModel(event) {
     if (file) {
         try {
             const zip = await JSZip.loadAsync(file);
-            console.log("ZIP 파일을 성공적으로 로드했습니다.");
+            console.log('ZIP 파일을 성공적으로 로드했습니다.');
 
-            // Load model topology (model.json)
             const modelJson = await zip.file('model.json').async('string');
-            console.log("모델 JSON 로드 성공");
+            console.log('모델 JSON 로드 성공');
 
-            // Load weight data (weights.bin)
             const weightDataFile = zip.file('weights.bin');
             if (!weightDataFile) {
-                throw new Error('weights.bin 파일이 누락되었습니다.');
+                alert('weights.bin 파일이 누락되었습니다.');
+                return;
             }
-            console.log("가중치 파일 로드 성공");
+            console.log('가중치 파일 로드 성공');
 
             const weightData = await weightDataFile.async('arraybuffer');
-            console.log("가중치 데이터 로드 성공");
+            console.log('가중치 데이터 로드 성공');
 
-            // Parse model topology and load the model
             const modelTopology = JSON.parse(modelJson);
+
+            // Initialize model to null before loading the new one to prevent conflicts
+            if (model) {
+                model = null;
+            }
+
+            // Load the model from memory
             const handler = tf.io.fromMemory({
                 modelTopology,
                 weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [],
                 weightData
             });
 
-            // Load the model using TensorFlow.js
             model = await tf.loadLayersModel(handler);
-            console.log("모델을 성공적으로 불러왔습니다.");
 
-            // Load labels (labels.txt)
+            // Load class labels
             const labelsFile = zip.file('labels.txt');
             if (labelsFile) {
                 const labelsText = await labelsFile.async('string');
                 CLASS_NAMES.splice(0, CLASS_NAMES.length, ...labelsText.split('\n'));
             }
+
             alert('모델이 성공적으로 불러와졌습니다.');
             document.getElementById('training-progress').innerText = '모델이 불러와졌습니다.';
         } catch (error) {
             console.error("모델 불러오기 중 오류 발생:", error);
-            alert('모델 불러오기에 실패했습니다. 파일 형식을 확인하세요.');
-            document.getElementById('training-progress').innerText = '모델 불러오기 실패';
+            alert("모델을 불러오는 중 오류가 발생했습니다.");
         }
     }
 }
+
 
 
         // Download dataset as ZIP
