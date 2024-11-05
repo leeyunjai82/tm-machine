@@ -245,6 +245,11 @@ async function predictImage() {
     prediction.dispose();
 }
 
+// Upload dataset from ZIP (placeholder function)
+function uploadClassDataset(event, className) {
+    alert(`데이터셋 업로드 기능은 아직 구현되지 않았습니다. 클래스: ${className}`);
+}
+
 // Start the camera when the page loads
 window.onload = () => {
     startCamera();
