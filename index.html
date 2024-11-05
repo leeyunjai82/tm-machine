@@ -356,16 +356,47 @@
                 alert('이미지를 추가할 클래스를 선택하세요.');
                 return;
             }
-
+        
             const video = document.getElementById('camera');
-            const imgTensor = tf.tidy(() => {
-                return tf.browser.fromPixels(video)
-                    .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
-                    .toFloat()
-                    .div(tf.scalar(255));
-            });
-
-            addImageToClass(imgTensor, gatherDataState);
+            try {
+                const imgTensor = tf.tidy(() => {
+                    return tf.browser.fromPixels(video)
+                        .resizeNearestNeighbor([MOBILE_NET_INPUT_HEIGHT, MOBILE_NET_INPUT_WIDTH])
+                        .toFloat()
+                        .div(tf.scalar(255));
+                });
+        
+                console.log("Captured Image Tensor:", imgTensor);
+                addImageToClass(imgTensor, gatherDataState);
+            } catch (error) {
+                console.error("Error capturing image:", error);
+            }
+        }
+        
+        // Helper function to add image tensor to class and feature extraction
+        function addImageToClass(imgTensor, classIndex) {
+            try {
+                const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
+                trainingDataInputs.push(features);
+                trainingDataOutputs.push(classIndex);
+                console.log("Image added to class:", classIndex);
+        
+                // Display the thumbnail for visualization
+                const imageElement = document.createElement('img');
+                tf.browser.toPixels(imgTensor).then((pixels) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = MOBILE_NET_INPUT_WIDTH;
+                    canvas.height = MOBILE_NET_INPUT_HEIGHT;
+                    const ctx = canvas.getContext('2d');
+                    const imageData = new ImageData(pixels, MOBILE_NET_INPUT_WIDTH, MOBILE_NET_INPUT_HEIGHT);
+                    ctx.putImageData(imageData, 0, 0);
+                    imageElement.src = canvas.toDataURL();
+                    imageElement.className = 'thumbnail';
+                    document.querySelector(`#class-${CLASS_NAMES[classIndex]} .image-collection`).appendChild(imageElement);
+                });
+            } catch (error) {
+                console.error("Error adding image to class:", error);
+            }
         }
 
         // Upload dataset from ZIP (Unified version)
@@ -398,13 +429,6 @@
                 }
                 alert(`${className} 데이터셋이 업로드되었습니다.`);
             }
-        }
-
-        // Helper function to add image tensor to class and feature extraction
-        function addImageToClass(imgTensor, classIndex) {
-            const features = mobilenet.predict(imgTensor.expandDims()).squeeze();
-            trainingDataInputs.push(features);
-            trainingDataOutputs.push(classIndex);
         }
 
         // Train model using MobileNet for transfer learning
