@@ -292,67 +292,83 @@
             document.getElementById('training-progress').innerText = '모델이 준비되었습니다.';
         });
 
-        // Add a new class
-        function addClass() {
-            const className = document.getElementById('class-name').value;
-            if (className && !CLASS_NAMES.includes(className)) {
-                CLASS_NAMES.push(className);
-                // Create new class container
-                const classContainer = document.createElement('div');
-                classContainer.className = 'class-container';
-                classContainer.id = `class-${className}`;
-                classContainer.innerHTML = `<h3 onclick="selectClass('${className}')">${className}</h3><div class="image-collection"></div>`;
-                classContainer.onclick = () => {
-                    selectClass(className);
-                };
-                // Add buttons for each class
-                const downloadButton = document.createElement('button');
-                downloadButton.innerText = `다운로드`;
-                downloadButton.onclick = (e) => {
-                    e.stopPropagation();
-                    downloadClassDataset(className);
-                };
-                classContainer.appendChild(downloadButton);
-                
-                const uploadButton = document.createElement('input');
-                uploadButton.type = 'file';
-                uploadButton.accept = '.zip';
-                uploadButton.style.display = 'none';
-                uploadButton.onchange = (e) => {
-                    uploadClassDataset(e, className);
-                };
-                const uploadButtonLabel = document.createElement('label');
-                uploadButtonLabel.innerText = `업로드`;
-                uploadButtonLabel.classList.add('upload-button');
-                uploadButtonLabel.onclick = () => {
-                    uploadButton.click();
-                };
-                classContainer.appendChild(uploadButton);
-                classContainer.appendChild(uploadButtonLabel);
+function addClass() {
+    const className = document.getElementById('class-name').value;
+    if (className && !CLASS_NAMES.includes(className)) {
+        CLASS_NAMES.push(className);
 
-                const deleteButton = document.createElement('button');
-                deleteButton.innerText = `삭제`;
-                deleteButton.onclick = (e) => {
-                    e.stopPropagation();
-                    if (confirm(`${className} 클래스를 삭제하시겠습니까?`)) {
-                        classContainer.remove();
-                        const classIndex = CLASS_NAMES.indexOf(className);
-                        if (classIndex > -1) {
-                            CLASS_NAMES.splice(classIndex, 1);
-                            // Remove related data
-                            trainingDataInputs = trainingDataInputs.filter((_, i) => trainingDataOutputs[i] !== classIndex);
-                            trainingDataOutputs = trainingDataOutputs.filter(output => output !== classIndex);
-                            // Update indices of remaining classes in trainingDataOutputs
-                            trainingDataOutputs = trainingDataOutputs.map(output => output > classIndex ? output - 1 : output);                            
-                        }
-                    }
-                };
-                classContainer.appendChild(deleteButton);
+        // 클래스 컨테이너 생성
+        const classContainer = document.createElement('div');
+        classContainer.className = 'class-container';
+        classContainer.id = `class-${className}`;
 
-                document.getElementById('class-list').appendChild(classContainer);
-                document.getElementById('class-name').value = '';
+        // 클래스 제목 생성 및 클릭 이벤트 추가
+        const h3 = document.createElement('h3');
+        h3.innerText = className;
+        h3.onclick = () => selectClass(className);
+        classContainer.appendChild(h3);
+
+        // 이미지 컬렉션 컨테이너 생성
+        const imageCollection = document.createElement('div');
+        imageCollection.className = 'image-collection';
+        classContainer.appendChild(imageCollection);
+
+        // 클래스 컨테이너 클릭 이벤트 추가
+        classContainer.onclick = () => {
+            selectClass(className);
+        };
+
+        // 다운로드 버튼 생성
+        const downloadButton = document.createElement('button');
+        downloadButton.innerText = `다운로드`;
+        downloadButton.onclick = (e) => {
+            e.stopPropagation();
+            downloadClassDataset(className);
+        };
+        classContainer.appendChild(downloadButton);
+
+        // 업로드 버튼 생성
+        const uploadInput = document.createElement('input');
+        uploadInput.type = 'file';
+        uploadInput.accept = '.zip';
+        uploadInput.style.display = 'none';
+        uploadInput.onchange = (e) => {
+            uploadClassDataset(e, className);
+        };
+        const uploadLabel = document.createElement('label');
+        uploadLabel.innerText = `업로드`;
+        uploadLabel.classList.add('upload-button');
+        uploadLabel.onclick = () => {
+            uploadInput.click();
+        };
+        classContainer.appendChild(uploadInput);
+        classContainer.appendChild(uploadLabel);
+
+        // 삭제 버튼 생성
+        const deleteButton = document.createElement('button');
+        deleteButton.innerText = `삭제`;
+        deleteButton.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`${className} 클래스를 삭제하시겠습니까?`)) {
+                classContainer.remove();
+                const classIndex = CLASS_NAMES.indexOf(className);
+                if (classIndex > -1) {
+                    CLASS_NAMES.splice(classIndex, 1);
+                    // 관련 데이터 삭제
+                    trainingDataInputs = trainingDataInputs.filter((_, i) => trainingDataOutputs[i] !== classIndex);
+                    trainingDataOutputs = trainingDataOutputs.filter(output => output !== classIndex);
+                    // 남은 클래스들의 인덱스 업데이트
+                    trainingDataOutputs = trainingDataOutputs.map(output => output > classIndex ? output - 1 : output);
+                }
             }
-        }
+        };
+        classContainer.appendChild(deleteButton);
+
+        document.getElementById('class-list').appendChild(classContainer);
+        document.getElementById('class-name').value = '';
+    }
+}
+
 
         // Select a class
         function selectClass(className) {
