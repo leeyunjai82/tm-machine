@@ -557,16 +557,17 @@ async function exportModelAsZip() {
         alert('먼저 모델을 학습하세요');
         return;
     }
-
     const zip = new JSZip();
 
     try {
-        // Save model to in-memory file system using the 'tensorflow' handler
-        const modelSaveHandler = tf.io.withSaveHandler(async (artifacts) => artifacts);
-        const modelArtifacts = await model.save(modelSaveHandler);
+        // Save model to memory using the 'tensorflow' handler
+        const modelArtifacts = await model.save(tf.io.withSaveHandler(async (artifacts) => artifacts));
 
-        // Save model topology and weights to zip
+        // Save model topology and weights to ZIP
         zip.file('model.json', JSON.stringify(modelArtifacts.modelTopology));
+        if (modelArtifacts.weightSpecs) {
+            zip.file('weightsSpecs.json', JSON.stringify(modelArtifacts.weightSpecs));
+        }
         if (modelArtifacts.weightData) {
             zip.file('weights.bin', new Uint8Array(modelArtifacts.weightData));
         }
@@ -586,7 +587,6 @@ async function exportModelAsZip() {
     }
 }
 
-
 // Import model from ZIP
 async function importModel(event) {
     const file = event.target.files[0];
@@ -605,8 +605,16 @@ async function importModel(event) {
             }
             console.log('가중치 파일 로드 성공');
 
+            const weightSpecsFile = zip.file('weightsSpecs.json');
+            if (!weightSpecsFile) {
+                alert('weightsSpecs.json 파일이 누락되었습니다.');
+                return;
+            }
+            console.log('가중치 사양 로드 성공');
+
             const weightData = await weightDataFile.async('arraybuffer');
-            console.log('가중치 데이터 로드 성공');
+            const weightSpecs = JSON.parse(await weightSpecsFile.async('string'));
+            console.log('가중치 데이터 및 사양 로드 성공');
 
             const modelTopology = JSON.parse(modelJson);
 
@@ -618,7 +626,7 @@ async function importModel(event) {
             // Load the model from memory
             const handler = tf.io.fromMemory({
                 modelTopology,
-                weightSpecs: modelTopology.weightsManifest ? modelTopology.weightsManifest[0].weights : [],
+                weightSpecs,
                 weightData
             });
 
@@ -639,6 +647,7 @@ async function importModel(event) {
         }
     }
 }
+
 
 
 
