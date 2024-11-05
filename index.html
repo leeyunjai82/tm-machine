@@ -293,6 +293,7 @@
                 classContainer.onclick = () => {
                     selectClass(className);
                 };
+                
                 // Add download button for each class
                 const downloadButton = document.createElement('button');
                 downloadButton.innerText = `데이터셋 다운로드`;
@@ -301,6 +302,7 @@
                     downloadClassDataset(className);
                 };
                 classContainer.appendChild(downloadButton);
+                
                 // Add upload button for each class
                 const uploadButton = document.createElement('input');
                 uploadButton.type = 'file';
@@ -317,8 +319,37 @@
                 };
                 classContainer.appendChild(uploadButton);
                 classContainer.appendChild(uploadButtonLabel);
+                
+                // Add delete button for each class
+                const deleteButton = document.createElement('button');
+                deleteButton.innerText = `데이터 삭제`;
+                deleteButton.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteClassData(className);
+                };
+                classContainer.appendChild(deleteButton);
+                
+                // Append the class container to the class list
                 document.getElementById('class-list').appendChild(classContainer);
                 document.getElementById('class-name').value = '';
+            }
+        }
+        
+        // Function to delete all images of a class
+        function deleteClassData(className) {
+            if (confirm(`${className} 클래스의 모든 데이터를 삭제하시겠습니까?`)) {
+                const classContainer = document.getElementById(`class-${className}`);
+                const imageCollection = classContainer.querySelector('.image-collection');
+        
+                // Clear the image collection for the class
+                imageCollection.innerHTML = '';
+        
+                // Remove training data related to this class
+                const classIndex = CLASS_NAMES.indexOf(className);
+                trainingDataInputs = trainingDataInputs.filter((_, index) => trainingDataOutputs[index] !== classIndex);
+                trainingDataOutputs = trainingDataOutputs.filter(output => output !== classIndex);
+        
+                alert(`${className} 클래스의 데이터가 삭제되었습니다.`);
             }
         }
 
